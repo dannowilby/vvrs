@@ -10,3 +10,5 @@ crate-type = ["cdylib", "rlib"]
 [[bin]]
 name = "vvrs"
 path = "src/main.rs"
+
+[dependencies]
