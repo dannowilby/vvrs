@@ -8,7 +8,8 @@ impl Block {
     pub fn is_solid(&self) -> bool {
         match self.0 {
             0 => false,
-            _ => true,
+            1 => true,
+            _ => false,
         }
     }
 }
