@@ -1,4 +1,3 @@
-
 /// since this is a tuple struct, it has the same memory as just a u32,
 /// or so I believe
 #[derive(Clone, Copy)]
