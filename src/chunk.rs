@@ -29,7 +29,7 @@ impl Chunk {
 /// binary operations on the face mask. Doesn't seem like it will be a
 /// bottleneck yet, but it can always be changed.
 #[allow(dead_code)]
-fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
+pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
     // first we want create a binary representation of only the solid blocks,
     // so we can cull the non-visible faces that don't touch air
     let mut t = [[0u32; CHUNK_SIZE]; CHUNK_SIZE];
