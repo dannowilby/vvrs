@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use crate::block::Block;
 
@@ -30,6 +30,8 @@ impl Chunk {
 /// bottleneck yet, but it can always be changed.
 #[allow(dead_code)]
 pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
+    let cull_time = Instant::now();
+
     // first we want create a binary representation of only the solid blocks,
     // so we can cull the non-visible faces that don't touch air
     let mut t = [[0u32; CHUNK_SIZE]; CHUNK_SIZE];
@@ -84,6 +86,7 @@ pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
             add_faces(chunk, &mut data[5], x, y, x_quads_backward);
         }
     }
+    log::debug!("Culling quads took {}us", cull_time.elapsed().as_micros());
 
     // the vertex data itself
     let mut mesh = [
@@ -95,9 +98,11 @@ pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
         Vec::new(),
     ];
 
+    let mesh_time = Instant::now();
     for i in 0..6 {
         mesh[i] = greedy_merge(&mut data[i], i);
     }
+    log::debug!("Merging quads took {}us", mesh_time.elapsed().as_micros());
 
     mesh
 }
