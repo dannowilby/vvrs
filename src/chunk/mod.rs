@@ -4,6 +4,7 @@ use block::Block;
 
 pub mod block;
 pub mod mesher;
+pub mod pool;
 
 pub const CHUNK_SIZE: usize = 32;
 
