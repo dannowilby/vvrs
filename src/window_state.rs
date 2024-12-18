@@ -40,8 +40,14 @@ impl WindowState {
             .await
             .unwrap();
 
-        log::info!("Maximum buffer size: {}MiB", device.limits().max_buffer_size / (2u64.pow(20)));
-        log::info!("Maximum number of vertex buffers: {}", device.limits().max_vertex_buffers );
+        log::info!(
+            "Maximum buffer size: {}MiB",
+            device.limits().max_buffer_size / (2u64.pow(20))
+        );
+        log::info!(
+            "Maximum number of vertex buffers: {}",
+            device.limits().max_vertex_buffers
+        );
 
         let surface = instance
             .create_surface(window.clone())

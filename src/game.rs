@@ -65,7 +65,7 @@ impl ApplicationHandler for Game {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                state.window.request_redraw();   
+                state.window.request_redraw();
             }
             _ => {}
         }

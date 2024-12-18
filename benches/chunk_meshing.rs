@@ -1,8 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use vvrs::{
-    block::Block,
-    chunk::{mesh, Chunk, CHUNK_SIZE},
-};
+use vvrs::chunk::{block::Block, mesher::mesh, Chunk, CHUNK_SIZE};
 
 fn create_random_chunk() -> Chunk {
     let mut chunk = Chunk::default();
