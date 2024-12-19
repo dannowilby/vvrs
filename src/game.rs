@@ -9,11 +9,15 @@ use winit::{
     window::{Window, WindowId},
 };
 
+use crate::{chunk::pool::ChunkPool, player::Player};
+
 use super::window_state::WindowState;
 
 #[derive(Default)]
 pub struct Game {
     window: Option<WindowState>,
+    player: Player,
+    chunk_pool: ChunkPool,
 }
 
 impl ApplicationHandler for Game {
@@ -32,6 +36,11 @@ impl ApplicationHandler for Game {
         log::info!("Window created.");
 
         let w = pollster::block_on(WindowState::new(window));
+
+        // set up game objects
+
+        self.chunk_pool = ChunkPool::initialize(&w);
+        self.player = Player {};
 
         self.window = Some(w);
     }
@@ -65,6 +74,12 @@ impl ApplicationHandler for Game {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                if self.player.has_changed_chunk() {
+                    self.chunk_pool.update_chunks(&self.player);
+                }
+
+                self.chunk_pool.render(state, &self.player);
+
                 state.window.request_redraw();
             }
             _ => {}

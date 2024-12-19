@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor, PresentMode,
+    Adapter, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor, PresentMode,
     RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
 };
 use winit::window::Window;
@@ -11,6 +11,8 @@ pub struct WindowState {
     pub queue: wgpu::Queue,
     pub surface: wgpu::Surface<'static>,
     pub surface_config: SurfaceConfiguration,
+    pub instance: Instance,
+    pub adapter: Adapter,
 
     pub window: Arc<Window>,
 }
@@ -66,6 +68,8 @@ impl WindowState {
         surface.configure(&device, &surface_config);
 
         Self {
+            instance,
+            adapter,
             device,
             queue,
             surface,

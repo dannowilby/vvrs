@@ -6,6 +6,7 @@ use winit::{
 
 pub mod chunk;
 pub mod game;
+pub mod player;
 pub mod window_state;
 
 pub fn run() -> Result<(), EventLoopError> {
