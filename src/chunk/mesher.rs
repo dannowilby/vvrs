@@ -4,6 +4,11 @@ use crate::chunk::{block::Block, CHUNK_SIZE};
 
 use super::Chunk;
 
+/// The memory footprint of a maximal mesh
+pub const MAX_CHUNK_MEMORY_USAGE: u32 = {
+    3 * CHUNK_SIZE.pow(3) as u32 // need to multiply with vertex size
+};
+
 /// Returns the mesh of the chunk. The resulting chunk is split by the direction
 /// of the faces.
 /// The greedy face merging is a fairly naive implmenetation and doesn't use
@@ -143,7 +148,7 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
         let mut quad1 = pos;
         let mut quad2 = pos;
 
-        // check one block forward in the row
+        // check block forward in the row
         while let Some(b) = hm.get(&(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2)) {
             if b == &block {
                 hm.remove(&(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2));
@@ -170,7 +175,7 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
         let column_length =
             1 + (quad2.0 - quad1.0) * i.0 + (quad2.1 - quad1.1) * i.1 + (quad2.2 - quad1.2) * i.2;
 
-        // check one column backward
+        // check column backward
         let mut can_grow = true;
         while can_grow {
             let Some(t) = safe_subtract_position(quad1, j) else {

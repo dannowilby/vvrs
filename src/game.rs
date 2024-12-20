@@ -40,7 +40,10 @@ impl ApplicationHandler for Game {
         // set up game objects
 
         self.chunk_pool = ChunkPool::initialize(&w);
-        self.player = Player {};
+        self.player = Player {
+            load_radius: 4,
+            position: (8, 8, 8),
+        };
 
         self.window = Some(w);
     }
@@ -75,7 +78,7 @@ impl ApplicationHandler for Game {
             }
             WindowEvent::RedrawRequested => {
                 if self.player.has_changed_chunk() {
-                    self.chunk_pool.update_chunks(&self.player);
+                    self.chunk_pool.update_chunks(state, &self.player);
                 }
 
                 self.chunk_pool.render(state, &self.player);
