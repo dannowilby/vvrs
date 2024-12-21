@@ -13,10 +13,7 @@ use wgpu::{
 
 use crate::{chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
 
-use super::{
-    mesher::mesh,
-    Chunk
-};
+use super::{mesher::mesh, Chunk};
 
 /// Still need to set up uniform buffer, indirect call creation, and properly
 /// format render pipeline.

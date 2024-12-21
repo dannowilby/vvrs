@@ -14,7 +14,8 @@ pub mod pool;
 pub type ChunkDimTy = u16;
 
 /// Used for encoding the vertex position in a single vertex.
-pub const NUM_BITS_IN_POS: ChunkDimTy = ChunkDimTy::ilog2(std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy;
+pub const NUM_BITS_IN_POS: ChunkDimTy =
+    ChunkDimTy::ilog2(std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy;
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]
@@ -27,16 +28,14 @@ impl EncodedVertex {
 }
 
 /// The memory footprint of a maximal mesh, a proof will of which be provided in the docs.
-pub const MAX_CHUNK_MEMORY_USAGE: u32 = {
-    (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3) as u32)
-};
+pub const MAX_CHUNK_MEMORY_USAGE: u32 =
+    (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3) as u32);
 
 /// Block position relative to the chunk.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct LocalBlockPos(pub ChunkDimTy, pub ChunkDimTy, pub ChunkDimTy);
 
 impl LocalBlockPos {
-
     fn safe_sub(p1: &LocalBlockPos, p2: &LocalBlockPos) -> Option<LocalBlockPos> {
         let x = p1.0.checked_sub(p2.0);
         let y = p1.1.checked_sub(p2.1);

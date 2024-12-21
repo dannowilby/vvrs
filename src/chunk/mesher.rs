@@ -45,11 +45,15 @@ pub fn mesh(chunk: &Chunk) -> [Vec<EncodedVertex>; 6] {
             let z_quads_forward = t[x][y] & !(t[x][y] << 1);
             add_faces(chunk, &mut data[0], x, y, z_quads_forward);
 
-            let z_quads_backward = t[x as usize][y] & !(t[x][y] >> 1);
+            let z_quads_backward = t[x][y] & !(t[x][y] >> 1);
             add_faces(chunk, &mut data[3], x, y, z_quads_backward);
 
             // cull y faces
-            let next_row = if y + 1 >= CHUNK_SIZE as usize { 0 } else { t[x][y + 1] };
+            let next_row = if y + 1 >= CHUNK_SIZE as usize {
+                0
+            } else {
+                t[x][y + 1]
+            };
             let y_quads_forward = t[x][y] & !next_row;
             add_faces(chunk, &mut data[1], x, y, y_quads_forward);
 
@@ -58,7 +62,11 @@ pub fn mesh(chunk: &Chunk) -> [Vec<EncodedVertex>; 6] {
             add_faces(chunk, &mut data[4], x, y, y_quads_backward);
 
             // cull x faces
-            let next_row = if x + 1 >= CHUNK_SIZE as usize { 0 } else { t[x + 1][y] };
+            let next_row = if x + 1 >= CHUNK_SIZE as usize {
+                0
+            } else {
+                t[x + 1][y]
+            };
             let x_quads_forward = t[x][y] & !next_row;
             add_faces(chunk, &mut data[2], x, y, x_quads_forward);
 
@@ -106,14 +114,22 @@ fn add_faces(
         // shifting the bits can cause an overflow if we're not careful
         // about how we do it
         faces <<= leading; // shift over the 0s
-        faces -= 1 << CHUNK_SIZE - 1; // subtract the most significant bit
+        faces -= 1 << (CHUNK_SIZE - 1); // subtract the most significant bit
         faces <<= 1; // shift it over now that it's 0
 
         z += leading + 1;
 
         data.insert(
-            LocalBlockPos(x as ChunkDimTy, y as ChunkDimTy, CHUNK_SIZE as ChunkDimTy - z),
-            chunk.get_block(&LocalBlockPos(x as ChunkDimTy, y as ChunkDimTy, CHUNK_SIZE as ChunkDimTy - z)),
+            LocalBlockPos(
+                x as ChunkDimTy,
+                y as ChunkDimTy,
+                CHUNK_SIZE as ChunkDimTy - z,
+            ),
+            chunk.get_block(&LocalBlockPos(
+                x as ChunkDimTy,
+                y as ChunkDimTy,
+                CHUNK_SIZE as ChunkDimTy - z,
+            )),
         );
     }
 }
@@ -134,7 +150,7 @@ fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<Enco
     while !hm.is_empty() {
         // get an element
         let (pos, block) = hm.iter().take(1).collect::<Vec<_>>()[0];
-        let pos = pos.clone(); // we clone the values to avoid appease the borrow checker
+        let pos = *pos; // we clone the values to avoid appease the borrow checker
         let block = *block;
         hm.remove(&pos);
 
@@ -208,7 +224,9 @@ fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<Enco
 
             let mut to_remove = vec![];
             for l in 0..column_length {
-                let Some(a) = LocalBlockPos::safe_sub(&t, &LocalBlockPos(l * i.0, l * i.1, l * i.2)) else {
+                let Some(a) =
+                    LocalBlockPos::safe_sub(&t, &LocalBlockPos(l * i.0, l * i.1, l * i.2))
+                else {
                     can_grow = false;
                     break;
                 };
@@ -243,7 +261,14 @@ fn create_quad(
     LocalBlockPos(c1x, c1y, c1z): LocalBlockPos,
     LocalBlockPos(c2x, c2y, c2z): LocalBlockPos,
 ) -> Vec<EncodedVertex> {
-    vec![EncodedVertex(c1x), EncodedVertex(c1y), EncodedVertex(c1z), EncodedVertex(c2x), EncodedVertex(c2y), EncodedVertex(c2z)]
+    vec![
+        EncodedVertex(c1x),
+        EncodedVertex(c1y),
+        EncodedVertex(c1z),
+        EncodedVertex(c2x),
+        EncodedVertex(c2y),
+        EncodedVertex(c2z),
+    ]
 }
 
 #[cfg(test)]
