@@ -1,27 +1,22 @@
 use std::{collections::HashMap, time::Instant};
 
-use crate::chunk::{block::Block, CHUNK_SIZE};
+use crate::chunk::{block::Block, ChunkDimTy, LocalBlockPos, CHUNK_SIZE};
 
-use super::Chunk;
-
-/// The memory footprint of a maximal mesh
-pub const MAX_CHUNK_MEMORY_USAGE: u32 = {
-    3 * CHUNK_SIZE.pow(3) as u32 // need to multiply with vertex size
-};
+use super::{Chunk, EncodedVertex};
 
 /// Returns the mesh of the chunk. The resulting chunk is split by the direction
 /// of the faces.
 /// The greedy face merging is a fairly naive implmenetation and doesn't use
 /// binary operations on the face mask. Doesn't seem like it will be a
 /// bottleneck yet, but it can always be changed.
-pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
+pub fn mesh(chunk: &Chunk) -> [Vec<EncodedVertex>; 6] {
     let cull_time = Instant::now();
 
     // first we want create a binary representation of only the solid blocks,
     // so we can cull the non-visible faces that don't touch air
-    let mut t = [[0u32; CHUNK_SIZE]; CHUNK_SIZE];
+    let mut t = [[ChunkDimTy::default(); CHUNK_SIZE as usize]; CHUNK_SIZE as usize];
 
-    for ((x, y, z), block) in chunk.data.iter() {
+    for (LocalBlockPos(x, y, z), block) in chunk.data.iter() {
         if block.is_solid() {
             t[*x as usize][*y as usize] |= 1 << z;
         }
@@ -32,28 +27,29 @@ pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
     // also hashmaps don't allocate until the first insert, so allocating them
     // is fine
     let mut data = [
-        HashMap::<(u32, u32, u32), Block>::new(),
-        HashMap::<(u32, u32, u32), Block>::new(),
-        HashMap::<(u32, u32, u32), Block>::new(),
-        HashMap::<(u32, u32, u32), Block>::new(),
-        HashMap::<(u32, u32, u32), Block>::new(),
-        HashMap::<(u32, u32, u32), Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
+        HashMap::<LocalBlockPos, Block>::new(),
     ];
 
     for x in 0..CHUNK_SIZE {
         for y in 0..CHUNK_SIZE {
             // the next next_row and previous_row default to zero to make the
             // faces show on the edges, if we add padding, just disregard them
-
+            let x = x as usize;
+            let y = y as usize;
             // cull z faces
             let z_quads_forward = t[x][y] & !(t[x][y] << 1);
             add_faces(chunk, &mut data[0], x, y, z_quads_forward);
 
-            let z_quads_backward = t[x][y] & !(t[x][y] >> 1);
+            let z_quads_backward = t[x as usize][y] & !(t[x][y] >> 1);
             add_faces(chunk, &mut data[3], x, y, z_quads_backward);
 
             // cull y faces
-            let next_row = if y + 1 >= CHUNK_SIZE { 0 } else { t[x][y + 1] };
+            let next_row = if y + 1 >= CHUNK_SIZE as usize { 0 } else { t[x][y + 1] };
             let y_quads_forward = t[x][y] & !next_row;
             add_faces(chunk, &mut data[1], x, y, y_quads_forward);
 
@@ -62,7 +58,7 @@ pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
             add_faces(chunk, &mut data[4], x, y, y_quads_backward);
 
             // cull x faces
-            let next_row = if x + 1 >= CHUNK_SIZE { 0 } else { t[x + 1][y] };
+            let next_row = if x + 1 >= CHUNK_SIZE as usize { 0 } else { t[x + 1][y] };
             let x_quads_forward = t[x][y] & !next_row;
             add_faces(chunk, &mut data[2], x, y, x_quads_forward);
 
@@ -95,50 +91,50 @@ pub fn mesh(chunk: &Chunk) -> [Vec<u32>; 6] {
 /// Decodes the visible faces from the culling step
 fn add_faces(
     chunk: &Chunk,
-    data: &mut HashMap<(u32, u32, u32), Block>,
+    data: &mut HashMap<LocalBlockPos, Block>,
     x: usize,
     y: usize,
-    faces: u32,
+    faces: ChunkDimTy,
 ) {
     let mut faces = faces;
 
     let mut z = 0;
 
     while faces != 0 {
-        let leading = faces.leading_zeros();
+        let leading = faces.leading_zeros() as ChunkDimTy; // why does this always return a u32?
 
         // shifting the bits can cause an overflow if we're not careful
         // about how we do it
         faces <<= leading; // shift over the 0s
-        faces -= 0x8000_0000; // subtract the most significant bit
+        faces -= 1 << CHUNK_SIZE - 1; // subtract the most significant bit
         faces <<= 1; // shift it over now that it's 0
 
         z += leading + 1;
 
         data.insert(
-            (x as u32, y as u32, CHUNK_SIZE as u32 - z),
-            chunk.get_block(x as u32, y as u32, CHUNK_SIZE as u32 - z),
+            LocalBlockPos(x as ChunkDimTy, y as ChunkDimTy, CHUNK_SIZE as ChunkDimTy - z),
+            chunk.get_block(&LocalBlockPos(x as ChunkDimTy, y as ChunkDimTy, CHUNK_SIZE as ChunkDimTy - z)),
         );
     }
 }
 
 /// Greedy mesh the quads,
 /// note: this is not guaranteed to produce optimal meshes
-fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u32> {
+fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<EncodedVertex> {
     // create output mesh data vec
-    let mut output = Vec::<u32>::new();
+    let mut output = Vec::<EncodedVertex>::new();
 
     let growth_axes = match axis as u32 % 3 {
-        0 => [(1, 0, 0), (0, 1, 0)], // xy-plane
-        1 => [(1, 0, 0), (0, 0, 1)], // xz-plane
-        2 => [(0, 1, 0), (0, 0, 1)], // yz-plane
-        _ => [(1, 1, 1), (1, 1, 1)],
+        0 => [LocalBlockPos(1, 0, 0), LocalBlockPos(0, 1, 0)], // xy-plane
+        1 => [LocalBlockPos(1, 0, 0), LocalBlockPos(0, 0, 1)], // xz-plane
+        2 => [LocalBlockPos(0, 1, 0), LocalBlockPos(0, 0, 1)], // yz-plane
+        _ => [LocalBlockPos(1, 1, 1), LocalBlockPos(1, 1, 1)],
     };
 
     while !hm.is_empty() {
         // get an element
         let (pos, block) = hm.iter().take(1).collect::<Vec<_>>()[0];
-        let pos = *pos; // we clone the values to avoid appease the borrow checker
+        let pos = pos.clone(); // we clone the values to avoid appease the borrow checker
         let block = *block;
         hm.remove(&pos);
 
@@ -149,17 +145,17 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
         let mut quad2 = pos;
 
         // check block forward in the row
-        while let Some(b) = hm.get(&(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2)) {
+        while let Some(b) = hm.get(&LocalBlockPos(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2)) {
             if b == &block {
-                hm.remove(&(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2));
-                quad2 = (quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2);
+                hm.remove(&LocalBlockPos(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2));
+                quad2 = LocalBlockPos(quad2.0 + i.0, quad2.1 + i.1, quad2.2 + i.2);
             } else {
                 break;
             }
         }
 
         // check the blocks backward in the row
-        while let Some(t) = safe_subtract_position(quad1, i) {
+        while let Some(t) = LocalBlockPos::safe_sub(&quad1, &i) {
             if let Some(b) = hm.get(&t) {
                 if b == &block {
                     hm.remove(&t);
@@ -178,13 +174,13 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
         // check column backward
         let mut can_grow = true;
         while can_grow {
-            let Some(t) = safe_subtract_position(quad1, j) else {
+            let Some(t) = LocalBlockPos::safe_sub(&quad1, &j) else {
                 break;
             };
 
             let mut to_remove = vec![];
             for l in 0..column_length {
-                let a: (u32, u32, u32) = (t.0 + l * i.0, t.1 + l * i.1, t.2 + l * i.2);
+                let a = LocalBlockPos(t.0 + l * i.0, t.1 + l * i.1, t.2 + l * i.2);
                 let c = hm.get(&a);
 
                 if let Some(b) = c {
@@ -208,11 +204,11 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
         // check column forward
         can_grow = true;
         while can_grow {
-            let t = (quad2.0 + j.0, quad2.1 + j.1, quad2.2 + j.2);
+            let t = LocalBlockPos(quad2.0 + j.0, quad2.1 + j.1, quad2.2 + j.2);
 
             let mut to_remove = vec![];
             for l in 0..column_length {
-                let Some(a) = safe_subtract_position(t, (l * i.0, l * i.1, l * i.2)) else {
+                let Some(a) = LocalBlockPos::safe_sub(&t, &LocalBlockPos(l * i.0, l * i.1, l * i.2)) else {
                     can_grow = false;
                     break;
                 };
@@ -244,22 +240,10 @@ fn greedy_merge(hm: &mut HashMap<(u32, u32, u32), Block>, axis: usize) -> Vec<u3
 /// Encode the vertices, not fully implemented yet
 fn create_quad(
     _axis: usize,
-    (c1x, c1y, c1z): (u32, u32, u32),
-    (c2x, c2y, c2z): (u32, u32, u32),
-) -> Vec<u32> {
-    vec![c1x, c1y, c1z, c2x, c2y, c2z]
-}
-
-fn safe_subtract_position(p1: (u32, u32, u32), p2: (u32, u32, u32)) -> Option<(u32, u32, u32)> {
-    let x = p1.0.checked_sub(p2.0);
-    let y = p1.1.checked_sub(p2.1);
-    let z = p1.2.checked_sub(p2.2);
-
-    if x.is_none() || y.is_none() || z.is_none() {
-        return None;
-    }
-
-    Some((x.unwrap(), y.unwrap(), z.unwrap()))
+    LocalBlockPos(c1x, c1y, c1z): LocalBlockPos,
+    LocalBlockPos(c2x, c2y, c2z): LocalBlockPos,
+) -> Vec<EncodedVertex> {
+    vec![EncodedVertex(c1x), EncodedVertex(c1y), EncodedVertex(c1z), EncodedVertex(c2x), EncodedVertex(c2y), EncodedVertex(c2z)]
 }
 
 #[cfg(test)]
@@ -271,12 +255,32 @@ mod tests {
     fn can_modify_chunk() {
         let mut chunk = Chunk::default();
 
-        chunk.set_block(0, 0, 0, Block(1));
+        chunk.set_block(LocalBlockPos(0, 0, 0), Block(1));
 
-        let x = chunk.get_block(0, 0, 0);
-        let y = chunk.get_block(1, 1, 1);
+        let x = chunk.get_block(&LocalBlockPos(0, 0, 0));
+        let y = chunk.get_block(&LocalBlockPos(1, 1, 1));
 
         assert!(x == Block(1));
         assert!(y == Block(0));
+    }
+
+    #[test]
+    fn can_mesh_chunk() {
+        let mut chunk = Chunk::default();
+
+        for i in 0..CHUNK_SIZE {
+            for j in 0..CHUNK_SIZE {
+                for k in 0..CHUNK_SIZE {
+                    let pos = LocalBlockPos(i, j, k);
+                    chunk.set_block(pos, Block(1));
+                }
+            }
+        }
+
+        let data = mesh(&chunk);
+
+        for i in data {
+            assert!(i.len() == 6);
+        }
     }
 }

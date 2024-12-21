@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use vvrs::chunk::{block::Block, mesher::mesh, Chunk, CHUNK_SIZE};
+use vvrs::chunk::{block::Block, mesher::mesh, Chunk, LocalBlockPos, CHUNK_SIZE};
 
 fn create_random_chunk() -> Chunk {
     let mut chunk = Chunk::default();
@@ -8,7 +8,8 @@ fn create_random_chunk() -> Chunk {
         for y in 0..CHUNK_SIZE {
             for z in 0..CHUNK_SIZE {
                 if rand::random() {
-                    chunk.set_block(x as u32, y as u32, z as u32, Block(1));
+                    let pos = LocalBlockPos(x, y, z);
+                    chunk.set_block(pos, Block(1));
                 }
             }
         }
@@ -23,7 +24,8 @@ fn create_full_chunk() -> Chunk {
     for x in 0..CHUNK_SIZE {
         for y in 0..CHUNK_SIZE {
             for z in 0..CHUNK_SIZE {
-                chunk.set_block(x as u32, y as u32, z as u32, Block(1));
+                let pos = LocalBlockPos(x, y, z);
+                chunk.set_block(pos, Block(1));
             }
         }
     }

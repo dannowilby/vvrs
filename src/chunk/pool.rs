@@ -11,11 +11,11 @@ use wgpu::{
     RenderPipelineDescriptor, StoreOp,
 };
 
-use crate::{player::Player, window_state::WindowState};
+use crate::{chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
 
 use super::{
-    mesher::{self, mesh},
-    Chunk,
+    mesher::mesh,
+    Chunk
 };
 
 /// Still need to set up uniform buffer, indirect call creation, and properly
@@ -110,7 +110,7 @@ impl ChunkPool {
                 cache: None,
             });
 
-        let free = (0..(size / mesher::MAX_CHUNK_MEMORY_USAGE as u64)).collect();
+        let free = (0..(size / MAX_CHUNK_MEMORY_USAGE as u64)).collect();
 
         Self {
             vertex_buffer: Some(state.device.create_buffer(&desc_vertex)),
@@ -184,7 +184,7 @@ impl ChunkPool {
                 },
             );
 
-            let data: Vec<u32> = mesh.iter().flatten().cloned().collect();
+            let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
 
             state.queue.write_buffer(
                 self.vertex_buffer
