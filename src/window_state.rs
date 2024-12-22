@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use wgpu::{
-    Adapter, CompositeAlphaMode, DeviceDescriptor, Instance, InstanceDescriptor, PresentMode,
-    RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
+    Adapter, CompositeAlphaMode, DeviceDescriptor, Features, Instance, InstanceDescriptor,
+    PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
 };
 use winit::window::Window;
 
@@ -28,17 +28,18 @@ impl WindowState {
             .await
             .unwrap();
 
-        /*
         let device_descriptor = DeviceDescriptor {
             label: None,
-            required_features: todo!(),
+            required_features: Features::default()
+                .union(Features::MULTI_DRAW_INDIRECT)
+                .union(Features::POLYGON_MODE_LINE)
+                .union(Features::INDIRECT_FIRST_INSTANCE),
             required_limits: wgpu::Limits::downlevel_defaults(),
             memory_hints: wgpu::MemoryHints::MemoryUsage,
         };
-        */
 
         let (device, queue) = adapter
-            .request_device(&DeviceDescriptor::default(), None)
+            .request_device(&device_descriptor, None)
             .await
             .unwrap();
 

@@ -30,6 +30,7 @@ impl EncodedVertex {
 /// The memory footprint of a maximal mesh, a proof will of which be provided in the docs.
 pub const MAX_CHUNK_MEMORY_USAGE: u32 =
     (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3) as u32);
+pub const MAX_UNIFORM_MEMORY_USAGE: u32 = (std::mem::size_of::<i32>() * 3) as u32;
 
 /// Block position relative to the chunk.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -65,5 +66,21 @@ impl Chunk {
 
     pub fn set_block(&mut self, pos: LocalBlockPos, b: Block) {
         self.data.insert(pos, b);
+    }
+
+    pub fn random() -> Self {
+        let mut chunk = Chunk::default();
+
+        for i in 0..CHUNK_SIZE {
+            for j in 0..CHUNK_SIZE {
+                for k in 0..CHUNK_SIZE {
+                    if rand::random::<u8>() < 64 {
+                        chunk.set_block(LocalBlockPos(i, j, k), Block(1));
+                    }
+                }
+            }
+        }
+
+        chunk
     }
 }

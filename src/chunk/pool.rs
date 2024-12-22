@@ -1,34 +1,38 @@
-#![allow(dead_code)]
-
+/// TODO:
+/// - Create bind group layout for uniform and storage buffers
+/// - upload projection/view matrices to uniform buffer
+/// - set the buffers when drawing
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
 };
 
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, Color, CommandEncoderDescriptor, Operations,
-    PipelineLayoutDescriptor, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, StoreOp,
+    util::DrawIndirectArgs, Buffer, BufferDescriptor, BufferUsages, Color,
+    CommandEncoderDescriptor, Operations, PipelineLayoutDescriptor, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, StoreOp,
 };
 
 use crate::{chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
 
-use super::{mesher::mesh, Chunk};
+use super::{mesher::mesh, Chunk, ChunkPos};
 
-/// Still need to set up uniform buffer, indirect call creation, and properly
-/// format render pipeline.
 struct ChunkDrawInfo {
-    pub vertex_offset: u32, // offset in the vertex buffer
-    pub uniform_offset: u32,
+    pub offset: u64,
     /// offset and length for each face mesh
     pub faces: [(u32, u32); 6],
 }
 
 /// Manages chunk vertex data.
+#[allow(dead_code)]
 #[derive(Default)]
 pub struct ChunkPool {
     vertex_buffer: Option<Buffer>,
+    uniform_buffer: Option<Buffer>,
+    storage_buffer: Option<Buffer>,
     indirect_buffer: Option<Buffer>,
+
+    num_meshes: u64,
 
     /// Maps chunk position/id into its render info,
     /// we also use this to check which chunks are loaded or not.
@@ -42,24 +46,32 @@ impl ChunkPool {
     #[allow(unused_variables, unreachable_code)]
     pub fn initialize(state: &WindowState) -> Self {
         let size = state.device.limits().max_buffer_size;
+        let num_meshes = size / MAX_CHUNK_MEMORY_USAGE as u64;
+
         let desc_vertex = BufferDescriptor {
             label: Some("Chunk pool"),
-            size,
+            size: num_meshes * MAX_CHUNK_MEMORY_USAGE as u64,
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
 
-        todo!("Add uniform buffer for chunk translation matrices");
-        let _desc_uniform = BufferDescriptor {
+        let desc_storage = BufferDescriptor {
+            label: Some("Storage pool"),
+            size: num_meshes * std::mem::size_of::<ChunkPos>() as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        };
+
+        let desc_uniform = BufferDescriptor {
             label: Some("Uniform pool"),
-            size,
+            size: 2 * std::mem::size_of::<cgmath::Matrix4<f32>>() as u64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
 
         let desc_indirect = BufferDescriptor {
             label: Some("Indirect pool"),
-            size,
+            size: num_meshes * std::mem::size_of::<DrawIndirectArgs>() as u64,
             usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
@@ -69,7 +81,7 @@ impl ChunkPool {
         let shader = state
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: None,
+                label: Some("Chunk shader"),
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&chunk_shader_source)),
             });
 
@@ -84,14 +96,14 @@ impl ChunkPool {
                         .device
                         .create_pipeline_layout(&PipelineLayoutDescriptor {
                             label: None,
-                            bind_group_layouts: &[],
+                            bind_group_layouts: &[], // <------------------------------ add the uniform and storage buffer layouts here
                             push_constant_ranges: &[],
                         }),
                 ),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[],
+                    buffers: &[], // <-------------------------------------------- `Vertex::desc()` goes here
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -100,7 +112,7 @@ impl ChunkPool {
                     compilation_options: Default::default(),
                     targets: &[Some(swapchain_format.into())],
                 }),
-                primitive: wgpu::PrimitiveState::default(),
+                primitive: wgpu::PrimitiveState::default(), // <--------------------------------------- May want to edit this to change defaults
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
@@ -110,12 +122,69 @@ impl ChunkPool {
         let free = (0..(size / MAX_CHUNK_MEMORY_USAGE as u64)).collect();
 
         Self {
+            num_meshes,
             vertex_buffer: Some(state.device.create_buffer(&desc_vertex)),
+            uniform_buffer: Some(state.device.create_buffer(&desc_uniform)),
+            storage_buffer: Some(state.device.create_buffer(&desc_storage)),
             indirect_buffer: Some(state.device.create_buffer(&desc_indirect)),
             lookup: HashMap::new(),
             free,
             pipeline: Some(render_pipeline),
         }
+    }
+
+    pub fn upload_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32)) {
+        // somehow get the chunk, either from memory or by generating it
+        let chunk = Chunk::random();
+
+        let mesh = mesh(&chunk);
+        let addr = self.free.pop().expect("Vertex buffer is full!");
+
+        let mut faces_offsets = [0u32; 6];
+
+        for i in 1..6 {
+            faces_offsets[i] = mesh[i - 1].len() as u32 + faces_offsets[i - 1];
+        }
+
+        // create the chunk info so that we can create indirect draw calls
+        // from this
+        self.lookup.insert(
+            chunk_pos,
+            ChunkDrawInfo {
+                offset: addr,
+                faces: [
+                    (faces_offsets[0], mesh[0].len() as u32),
+                    (faces_offsets[1], mesh[1].len() as u32),
+                    (faces_offsets[2], mesh[2].len() as u32),
+                    (faces_offsets[3], mesh[3].len() as u32),
+                    (faces_offsets[4], mesh[4].len() as u32),
+                    (faces_offsets[5], mesh[5].len() as u32),
+                ],
+            },
+        );
+
+        let vertex_offset = addr * MAX_CHUNK_MEMORY_USAGE as u64;
+        let storage_offset = addr * std::mem::size_of::<ChunkPos>() as u64;
+
+        // upload vertex data
+        let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
+        state.queue.write_buffer(
+            self.vertex_buffer
+                .as_ref()
+                .expect("No vertex buffer found! It should be here."),
+            vertex_offset,
+            bytemuck::cast_slice(data.as_slice()),
+        );
+
+        // upload storage data
+        let data: (i32, i32, i32) = chunk_pos;
+        state.queue.write_buffer(
+            self.storage_buffer
+                .as_ref()
+                .expect("No uniform buffer found! It should be here."),
+            storage_offset,
+            bytemuck::bytes_of(&[data.0, data.1, data.2]),
+        );
     }
 
     /// Recalculates the chunks that need to be loaded, and loads them.
@@ -146,55 +215,17 @@ impl ChunkPool {
                 continue;
             };
 
-            self.free.push(chunk_info.vertex_offset as u64);
+            self.free.push(chunk_info.offset);
             self.lookup.remove(&chunk_pos);
         }
 
         for chunk_pos in chunks_to_add {
-            // somehow get the chunk, either from memory or by generating it
-            let chunk = Chunk::default();
-
-            let mesh = mesh(&chunk);
-            let addr = self.free.pop().expect("Vertex buffer is full!") as u32;
-
-            let mut faces_offsets = [0u32; 6];
-
-            for i in 1..6 {
-                faces_offsets[i] = mesh[i - 1].len() as u32 + faces_offsets[i - 1];
-            }
-
-            // create the chunk info so that we can create indirect draw calls
-            // from this
-            self.lookup.insert(
-                chunk_pos,
-                ChunkDrawInfo {
-                    vertex_offset: addr,
-                    uniform_offset: 0,
-                    faces: [
-                        (faces_offsets[0], mesh[0].len() as u32),
-                        (faces_offsets[1], mesh[1].len() as u32),
-                        (faces_offsets[2], mesh[2].len() as u32),
-                        (faces_offsets[3], mesh[3].len() as u32),
-                        (faces_offsets[4], mesh[4].len() as u32),
-                        (faces_offsets[5], mesh[5].len() as u32),
-                    ],
-                },
-            );
-
-            let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
-
-            state.queue.write_buffer(
-                self.vertex_buffer
-                    .as_ref()
-                    .expect("No vertex buffer found! It should be here."),
-                addr as u64,
-                bytemuck::cast_slice(data.as_slice()),
-            );
+            self.upload_chunk(state, chunk_pos);
         }
     }
 
-    pub fn render(&self, state: &WindowState, _player: &Player) {
-        // create render list using player camera most likely
+    pub fn render(&self, state: &WindowState, player: &Player) {
+        let call_count = self.build_draw_list(state, player);
 
         let frame = state
             .surface
@@ -225,9 +256,50 @@ impl ChunkPool {
                 occlusion_query_set: None,
             });
             render_pass.set_pipeline(self.pipeline.as_ref().unwrap());
-            render_pass.multi_draw_indirect(self.indirect_buffer.as_ref().unwrap(), 0, 0);
+
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..));
+
+            // <------------------------------------ set bind groups here
+
+            render_pass.multi_draw_indirect(self.indirect_buffer.as_ref().unwrap(), 0, call_count);
         }
         state.queue.submit(Some(encoder.finish()));
         frame.present();
+    }
+
+    fn build_draw_list(&self, state: &WindowState, _player: &Player) -> u32 {
+        let mut indirect_data = vec![];
+
+        self.lookup.values().for_each(|x| {
+            let addr = x.offset;
+            let vertex_offset = addr * MAX_CHUNK_MEMORY_USAGE as u64;
+            let storage_offset = addr * std::mem::size_of::<ChunkPos>() as u64;
+
+            let face_offset = x.faces[0].0;
+            let face_count = x.faces[0].1;
+            indirect_data.push(DrawIndirectArgs {
+                vertex_count: face_count,
+                instance_count: 1,
+                first_vertex: vertex_offset as u32 + face_offset,
+                first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
+            });
+        });
+        let call_count = indirect_data.len() as u32;
+
+        // submit the data
+        let data = indirect_data
+            .iter()
+            .flat_map(|f| f.as_bytes())
+            .cloned()
+            .collect::<Vec<_>>();
+        state.queue.write_buffer(
+            self.indirect_buffer
+                .as_ref()
+                .expect("Should be an indirect buffer here!"),
+            0,
+            data.as_slice(),
+        );
+
+        call_count
     }
 }

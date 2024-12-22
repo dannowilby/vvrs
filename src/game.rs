@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use winit::{
     application::ApplicationHandler,
@@ -37,13 +37,16 @@ impl ApplicationHandler for Game {
 
         let w = pollster::block_on(WindowState::new(window));
 
-        // set up game objects
+        // set up game objects, player is set up by Default
 
         self.chunk_pool = ChunkPool::initialize(&w);
-        self.player = Player {
-            load_radius: 4,
-            position: (8, 8, 8),
-        };
+
+        let now = Instant::now();
+        self.chunk_pool.update_chunks(&w, &self.player);
+        log::info!(
+            "Initial loading took {}s",
+            now.elapsed().as_micros() as f32 / 1_000_000.0
+        );
 
         self.window = Some(w);
     }
