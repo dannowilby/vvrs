@@ -5,9 +5,6 @@ var<storage, read> instance_attributes: array<vec3<i32>>;
 @group(1) @binding(0)
 var<uniform> projection: mat4x4<f32>;
 
-@group(2) @binding(0)
-var<uniform> view: mat4x4<f32>;
-
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: u32
@@ -27,7 +24,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 
     let pos = unpack_vertex(input.position);
     let model = instance_attributes[input.instance_index];
-    let output = VertexOutput(projection * view * pos);
+    let output = VertexOutput(projection * pos);
     return output;
 }
 

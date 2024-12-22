@@ -11,7 +11,7 @@ pub mod pool;
 /// chunk size so that we can dynamically change the size without rewriting the
 /// binary meshing algorithm. Any unsigned numeric natural type should work, but
 /// other numeric types have not been tested yet.
-pub type ChunkDimTy = u16;
+pub type ChunkDimTy = u32;
 
 /// Used for encoding the vertex position in a single vertex.
 pub const NUM_BITS_IN_POS: ChunkDimTy =
@@ -19,10 +19,10 @@ pub const NUM_BITS_IN_POS: ChunkDimTy =
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]
-pub struct EncodedVertex(pub u16);
+pub struct EncodedVertex(pub u32);
 
 impl EncodedVertex {
-    pub fn to_untyped(&self) -> u16 {
+    pub fn to_untyped(&self) -> u32 {
         self.0
     }
 }

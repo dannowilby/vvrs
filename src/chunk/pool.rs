@@ -8,14 +8,16 @@ use std::{
 };
 
 use wgpu::{
-    util::DrawIndirectArgs, Buffer, BufferDescriptor, BufferUsages, Color,
-    CommandEncoderDescriptor, Operations, PipelineLayoutDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, StoreOp,
+    util::DrawIndirectArgs, BindGroup, BindGroupDescriptor, BindGroupEntry,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType,
+    BufferDescriptor, BufferUsages, Color, CommandEncoderDescriptor, Operations,
+    PipelineLayoutDescriptor, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, ShaderStages, StoreOp,
 };
 
 use crate::{chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
 
-use super::{mesher::mesh, Chunk, ChunkPos};
+use super::{mesher::mesh, Chunk, ChunkPos, EncodedVertex};
 
 struct ChunkDrawInfo {
     pub offset: u64,
@@ -32,6 +34,9 @@ pub struct ChunkPool {
     storage_buffer: Option<Buffer>,
     indirect_buffer: Option<Buffer>,
 
+    storage_bind_group: Option<BindGroup>,
+    uniform_bind_group: Option<BindGroup>,
+
     num_meshes: u64,
 
     /// Maps chunk position/id into its render info,
@@ -46,7 +51,13 @@ impl ChunkPool {
     #[allow(unused_variables, unreachable_code)]
     pub fn initialize(state: &WindowState) -> Self {
         let size = state.device.limits().max_buffer_size;
+
         let num_meshes = size / MAX_CHUNK_MEMORY_USAGE as u64;
+
+        log::info!("{}", size);
+        log::info!("{}", MAX_CHUNK_MEMORY_USAGE);
+
+        log::info!("{}", num_meshes);
 
         let desc_vertex = BufferDescriptor {
             label: Some("Chunk pool"),
@@ -77,7 +88,7 @@ impl ChunkPool {
         };
 
         let chunk_shader_source =
-            std::fs::read_to_string("./assets/shader.wgsl").expect("Chunk shader missing!"); // change to proper logging at some point
+            std::fs::read_to_string("./assets/shader.wgsl").expect("Chunk shader missing!");
         let shader = state
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -86,6 +97,61 @@ impl ChunkPool {
             });
 
         let swapchain_format = state.surface.get_capabilities(&state.adapter).formats[0];
+
+        let vertex_buffer = Some(state.device.create_buffer(&desc_vertex));
+        let uniform_buffer = Some(state.device.create_buffer(&desc_uniform));
+        let storage_buffer = Some(state.device.create_buffer(&desc_storage));
+        let indirect_buffer = Some(state.device.create_buffer(&desc_indirect));
+
+        let storage_bind_group_layout =
+            state
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("Storage layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let storage_bind_group = state.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Storage bind group"),
+            layout: &storage_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: storage_buffer.as_ref().unwrap().as_entire_binding(),
+            }],
+        });
+
+        let uniform_bind_group_layout =
+            state
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("Uniform layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let uniform_bind_group = state.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Uniform bind group"),
+            layout: &uniform_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_ref().unwrap().as_entire_binding(),
+            }],
+        });
 
         let render_pipeline = state
             .device
@@ -96,14 +162,25 @@ impl ChunkPool {
                         .device
                         .create_pipeline_layout(&PipelineLayoutDescriptor {
                             label: None,
-                            bind_group_layouts: &[], // <------------------------------ add the uniform and storage buffer layouts here
+                            bind_group_layouts: &[
+                                &storage_bind_group_layout,
+                                &uniform_bind_group_layout,
+                            ],
                             push_constant_ranges: &[],
                         }),
                 ),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[], // <-------------------------------------------- `Vertex::desc()` goes here
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: std::mem::size_of::<EncodedVertex>() as wgpu::BufferAddress,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 0,
+                            format: wgpu::VertexFormat::Uint32,
+                        }],
+                    }],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -123,10 +200,12 @@ impl ChunkPool {
 
         Self {
             num_meshes,
-            vertex_buffer: Some(state.device.create_buffer(&desc_vertex)),
-            uniform_buffer: Some(state.device.create_buffer(&desc_uniform)),
-            storage_buffer: Some(state.device.create_buffer(&desc_storage)),
-            indirect_buffer: Some(state.device.create_buffer(&desc_indirect)),
+            storage_bind_group: Some(storage_bind_group),
+            uniform_bind_group: Some(uniform_bind_group),
+            vertex_buffer,
+            uniform_buffer,
+            storage_buffer,
+            indirect_buffer,
             lookup: HashMap::new(),
             free,
             pipeline: Some(render_pipeline),
@@ -138,6 +217,9 @@ impl ChunkPool {
         let chunk = Chunk::random();
 
         let mesh = mesh(&chunk);
+        if self.free.is_empty() {
+            log::info!("{:?}", chunk_pos);
+        }
         let addr = self.free.pop().expect("Vertex buffer is full!");
 
         let mut faces_offsets = [0u32; 6];
@@ -259,7 +341,8 @@ impl ChunkPool {
 
             render_pass.set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..));
 
-            // <------------------------------------ set bind groups here
+            render_pass.set_bind_group(0, self.storage_bind_group.as_ref().unwrap(), &[]);
+            render_pass.set_bind_group(1, self.uniform_bind_group.as_ref().unwrap(), &[]);
 
             render_pass.multi_draw_indirect(self.indirect_buffer.as_ref().unwrap(), 0, call_count);
         }

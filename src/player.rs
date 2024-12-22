@@ -25,7 +25,7 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             position: (0, 0, 0),
-            load_radius: 4,
+            load_radius: 1,
 
             projection: cgmath::perspective(
                 cgmath::Rad(f32::consts::PI * 0.70),
