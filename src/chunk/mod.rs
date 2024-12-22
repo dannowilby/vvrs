@@ -29,7 +29,7 @@ impl EncodedVertex {
 
 /// The memory footprint of a maximal mesh, a proof will of which be provided in the docs.
 pub const MAX_CHUNK_MEMORY_USAGE: u32 =
-    (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3) as u32);
+    (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3));
 pub const MAX_UNIFORM_MEMORY_USAGE: u32 = (std::mem::size_of::<i32>() * 3) as u32;
 
 /// Block position relative to the chunk.
