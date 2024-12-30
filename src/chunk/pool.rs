@@ -1,7 +1,4 @@
-/// TODO:
-/// - Create bind group layout for uniform and storage buffers
-/// - upload projection/view matrices to uniform buffer
-/// - set the buffers when drawing
+
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -15,18 +12,20 @@ use wgpu::{
     RenderPipelineDescriptor, ShaderStages, StoreOp,
 };
 
-use crate::{chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
+use crate::{allocator::Allocator, chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
 
 use super::{mesher::mesh, Chunk, ChunkPos, EncodedVertex};
 
 struct ChunkDrawInfo {
-    pub offset: u64,
+    pub vertex_offset: u64,
+    pub storage_offset: u64,
+
     /// offset and length for each face mesh
     pub faces: [(u32, u32); 6],
 }
 
-/// Manages chunk vertex data.
-#[allow(dead_code)]
+/// Manages chunk vertex data. When we want to draw a chunk, we pass a list of
+/// chunk positions and faces.
 #[derive(Default)]
 pub struct ChunkPool {
     vertex_buffer: Option<Buffer>,
@@ -34,16 +33,14 @@ pub struct ChunkPool {
     storage_buffer: Option<Buffer>,
     indirect_buffer: Option<Buffer>,
 
+    vertex_allocator: Allocator,
+    storage_allocator: Allocator,
+
     storage_bind_group: Option<BindGroup>,
     uniform_bind_group: Option<BindGroup>,
 
-    num_meshes: u64,
-
-    /// Maps chunk position/id into its render info,
-    /// we also use this to check which chunks are loaded or not.
     lookup: HashMap<(i32, i32, i32), ChunkDrawInfo>,
 
-    free: Vec<u64>, // keeps track of where any new buffers can go
     pipeline: Option<RenderPipeline>,
 }
 
@@ -51,24 +48,18 @@ impl ChunkPool {
     #[allow(unused_variables, unreachable_code)]
     pub fn initialize(state: &WindowState) -> Self {
         let size = state.device.limits().max_buffer_size;
-
-        let num_meshes = size / MAX_CHUNK_MEMORY_USAGE as u64;
-
-        log::info!("{}", size);
-        log::info!("{}", MAX_CHUNK_MEMORY_USAGE);
-
-        log::info!("{}", num_meshes);
+        let storage_buffer_size = size / 4;
 
         let desc_vertex = BufferDescriptor {
             label: Some("Chunk pool"),
-            size: num_meshes * MAX_CHUNK_MEMORY_USAGE as u64,
+            size,
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
 
         let desc_storage = BufferDescriptor {
             label: Some("Storage pool"),
-            size: num_meshes * std::mem::size_of::<ChunkPos>() as u64,
+            size: storage_buffer_size,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
@@ -82,7 +73,7 @@ impl ChunkPool {
 
         let desc_indirect = BufferDescriptor {
             label: Some("Indirect pool"),
-            size: num_meshes * std::mem::size_of::<DrawIndirectArgs>() as u64,
+            size,
             usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
@@ -196,57 +187,42 @@ impl ChunkPool {
                 cache: None,
             });
 
-        let free = (0..(size / MAX_CHUNK_MEMORY_USAGE as u64)).collect();
+        let free: Vec<u64> = (0..(size / MAX_CHUNK_MEMORY_USAGE as u64)).collect();
 
         Self {
-            num_meshes,
+
+            vertex_allocator: Allocator::new(size),
+            storage_allocator: Allocator::new(storage_buffer_size),
+
             storage_bind_group: Some(storage_bind_group),
             uniform_bind_group: Some(uniform_bind_group),
+            
             vertex_buffer,
             uniform_buffer,
             storage_buffer,
             indirect_buffer,
             lookup: HashMap::new(),
-            free,
             pipeline: Some(render_pipeline),
         }
     }
 
-    pub fn upload_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32)) {
-        // somehow get the chunk, either from memory or by generating it
-        let chunk = Chunk::random();
+    /// Upload a chunk so that it can be rendered.
+    pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32), chunk: Chunk) {
+
+        let vertex_size = std::mem::size_of::<EncodedVertex>() as u32;
 
         let mesh = mesh(&chunk);
-        if self.free.is_empty() {
-            log::info!("{:?}", chunk_pos);
-        }
-        let addr = self.free.pop().expect("Vertex buffer is full!");
-
-        let mut faces_offsets = [0u32; 6];
-
+        let mesh_len = vertex_size * (mesh.iter().fold(0, |acc, item: &Vec<EncodedVertex>|acc + item.len()) as u32);
+        
+        let Some(vertex_addr) = self.vertex_allocator.alloc(mesh_len as u64) else { return; }; // if we can't get a block of memory, just return
+        
+        let mut faces = [(0u32, 0u32); 6];
+        faces[0].1 = mesh[0].len() as u32;
         for i in 1..6 {
-            faces_offsets[i] = mesh[i - 1].len() as u32 + faces_offsets[i - 1];
+            // offset is the last length plus the last offset
+            faces[i].0 = faces[i - 1].1 + faces[i - 1].0;
+            faces[i].1 = mesh[i].len() as u32;
         }
-
-        // create the chunk info so that we can create indirect draw calls
-        // from this
-        self.lookup.insert(
-            chunk_pos,
-            ChunkDrawInfo {
-                offset: addr,
-                faces: [
-                    (faces_offsets[0], mesh[0].len() as u32),
-                    (faces_offsets[1], mesh[1].len() as u32),
-                    (faces_offsets[2], mesh[2].len() as u32),
-                    (faces_offsets[3], mesh[3].len() as u32),
-                    (faces_offsets[4], mesh[4].len() as u32),
-                    (faces_offsets[5], mesh[5].len() as u32),
-                ],
-            },
-        );
-
-        let vertex_offset = addr * MAX_CHUNK_MEMORY_USAGE as u64;
-        let storage_offset = addr * std::mem::size_of::<ChunkPos>() as u64;
 
         // upload vertex data
         let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
@@ -254,60 +230,46 @@ impl ChunkPool {
             self.vertex_buffer
                 .as_ref()
                 .expect("No vertex buffer found! It should be here."),
-            vertex_offset,
+            vertex_addr,
             bytemuck::cast_slice(data.as_slice()),
         );
 
+        let pos = &[chunk_pos.0, chunk_pos.1, chunk_pos.2];
+        let pos_length = std::mem::size_of::<[i32; 3]>();
+
+        let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else { return; }; // if we can't get a block of memory, just return
         // upload storage data
-        let data: (i32, i32, i32) = chunk_pos;
         state.queue.write_buffer(
             self.storage_buffer
                 .as_ref()
                 .expect("No uniform buffer found! It should be here."),
-            storage_offset,
-            bytemuck::bytes_of(&[data.0, data.1, data.2]),
+            storage_addr,
+            bytemuck::bytes_of(pos),
+        );
+
+        // create the chunk info so that we can create indirect draw calls
+        // from this
+        self.lookup.insert(
+            chunk_pos,
+            ChunkDrawInfo {
+                vertex_offset: vertex_addr,
+                storage_offset: storage_addr,
+                faces,
+            },
         );
     }
+    
+    pub fn remove_chunk(&mut self, pos: (i32, i32, i32)) {
+        let Some(chunk_info) = self.lookup.remove(&pos) else { return; };
 
-    /// Recalculates the chunks that need to be loaded, and loads them.
-    pub fn update_chunks(&mut self, state: &WindowState, player: &Player) {
-        let mut chunks_to_remove: HashSet<(i32, i32, i32)> = self.lookup.keys().cloned().collect();
-        let mut chunks_to_add = Vec::<(i32, i32, i32)>::new();
-
-        let pos = player.get_chunk_pos();
-        let r = player.load_radius as i32;
-
-        for x in (pos.0 - r)..=(pos.0 + r) {
-            for y in (pos.0 - r)..=(pos.0 + r) {
-                for z in (pos.0 - r)..=(pos.0 + r) {
-                    let new_pos = (x, y, z);
-
-                    if !self.lookup.contains_key(&new_pos) {
-                        chunks_to_add.push(new_pos);
-                    }
-
-                    chunks_to_remove.remove(&new_pos);
-                }
-            }
-        }
-
-        // remove the chunks and add their memory address to the free list
-        for chunk_pos in chunks_to_remove {
-            let Some(chunk_info) = self.lookup.get(&chunk_pos) else {
-                continue;
-            };
-
-            self.free.push(chunk_info.offset);
-            self.lookup.remove(&chunk_pos);
-        }
-
-        for chunk_pos in chunks_to_add {
-            self.upload_chunk(state, chunk_pos);
-        }
+        self.vertex_allocator.dealloc(chunk_info.vertex_offset);
+        self.storage_allocator.dealloc(chunk_info.storage_offset);
     }
 
-    pub fn render(&self, state: &WindowState, player: &Player) {
+    pub fn render(&self, state: &WindowState, player: &Player, _build_list: ()) {
         let call_count = self.build_draw_list(state, player);
+
+        // upload uniform buffer
 
         let frame = state
             .surface
@@ -354,10 +316,10 @@ impl ChunkPool {
         let mut indirect_data = vec![];
 
         self.lookup.values().for_each(|x| {
-            let addr = x.offset;
-            let vertex_offset = addr * MAX_CHUNK_MEMORY_USAGE as u64;
-            let storage_offset = addr * std::mem::size_of::<ChunkPos>() as u64;
+            let vertex_offset = x.vertex_offset;
+            let storage_offset = x.storage_offset;
 
+            // we manually setting the first face to be rendered
             let face_offset = x.faces[0].0;
             let face_count = x.faces[0].1;
             indirect_data.push(DrawIndirectArgs {

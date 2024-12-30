@@ -16,13 +16,14 @@ impl Space {
 
 /// An allocator with fixed size that abstracts over a block of memory. Used for
 /// managing the allocation of our vertex buffer.
-pub struct GpuAllocator {
+#[derive(Default)]
+pub struct Allocator {
     size: u64,
     freelist: Vec<Space>,
     occulist: Vec<Space>,
 }
 
-impl GpuAllocator {
+impl Allocator {
 
     pub fn new(size: u64) -> Self {
         Self {
@@ -57,7 +58,7 @@ impl GpuAllocator {
             }
             
         }
-        let Some(i) = min else { return None; };
+        let i = min?;
         
         let fs = self.freelist.remove(i);
         let offset = fs.offset;
@@ -143,11 +144,11 @@ impl GpuAllocator {
 
 #[cfg(test)]
 mod test {
-    use super::GpuAllocator;
+    use super::Allocator;
 
     #[test]
     fn gpu_allocs_in_order() {
-        let mut x = GpuAllocator::new(1024);
+        let mut x = Allocator::new(1024);
 
         let offset = x.alloc(24).expect("");
         assert!(offset == 0);
@@ -162,7 +163,7 @@ mod test {
     #[test]
     fn gpu_allocs_fit_blocks() {
 
-        let mut x = GpuAllocator::new(1024);
+        let mut x = Allocator::new(1024);
 
         let _ = x.alloc(24).expect("");
         let offset = x.alloc(10).expect("");
@@ -176,7 +177,7 @@ mod test {
 
     #[test]
     fn allocs_merge_freespace() {
-        let mut x = GpuAllocator::new(1024);
+        let mut x = Allocator::new(1024);
 
         let offset1 = x.alloc(24).expect("");
         let offset2 = x.alloc(10).expect("");
@@ -193,14 +194,14 @@ mod test {
 
     #[test]
     fn big_allocs_dont_find_space() {
-        let mut x = GpuAllocator::new(1024);
+        let mut x = Allocator::new(1024);
         let t = x.alloc(2048);
         assert!(t.is_none());
     }
 
     #[test]
     fn percent_allocked() {
-        let mut x = GpuAllocator::new(2048);
+        let mut x = Allocator::new(2048);
         let _ = x.alloc(1024);
         let percent = x.percent_full();
         assert!(percent == 0.5);

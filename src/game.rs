@@ -42,7 +42,7 @@ impl ApplicationHandler for Game {
         self.chunk_pool = ChunkPool::initialize(&w);
 
         let now = Instant::now();
-        self.chunk_pool.update_chunks(&w, &self.player);
+        // self.chunk_pool.update_chunks(&w, &self.player);
         log::info!(
             "Initial loading took {}s",
             now.elapsed().as_micros() as f32 / 1_000_000.0
@@ -81,10 +81,10 @@ impl ApplicationHandler for Game {
             }
             WindowEvent::RedrawRequested => {
                 if self.player.has_changed_chunk() {
-                    self.chunk_pool.update_chunks(state, &self.player);
+                    // self.chunk_pool.update_chunks(state, &self.player);
                 }
 
-                self.chunk_pool.render(state, &self.player);
+                // self.chunk_pool.render(state, &self.player);
 
                 state.window.request_redraw();
             }
