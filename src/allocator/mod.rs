@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Copy)]
 struct Space {
     offset: u64,
@@ -7,10 +6,7 @@ struct Space {
 
 impl Space {
     fn new(offset: u64, length: u64) -> Self {
-        Self {
-            offset,
-            length
-        }
+        Self { offset, length }
     }
 }
 
@@ -24,22 +20,19 @@ pub struct Allocator {
 }
 
 impl Allocator {
-
     pub fn new(size: u64) -> Self {
         Self {
             size,
             freelist: vec![Space::new(0, size)],
-            occulist: vec![]
+            occulist: vec![],
         }
     }
 
     pub fn alloc(&mut self, length: u64) -> Option<u64> {
-        
         let mut min: Option<usize> = None;
         let mut min_diff = 0;
 
         for i in 0..self.freelist.len() {
-
             let diff = self.freelist[i].length as i64 - length as i64;
 
             if diff < 0 {
@@ -56,40 +49,38 @@ impl Allocator {
                 min = Some(i);
                 min_diff = diff;
             }
-            
         }
         let i = min?;
-        
+
         let fs = self.freelist.remove(i);
         let offset = fs.offset;
-        
+
         let new_freespace = Space {
             offset: offset + length,
-            length: fs.length - length
+            length: fs.length - length,
         };
         if new_freespace.length != 0 {
             self.freelist.push(new_freespace);
         }
-        
-        let occuspace = Space {
-            offset,
-            length
-        };
+
+        let occuspace = Space { offset, length };
         self.occulist.push(occuspace);
 
         Some(offset)
     }
 
     pub fn dealloc(&mut self, offset: u64) {
-
-        let i = self.occulist.iter().position(|x| x.offset == offset).expect("");
+        let i = self
+            .occulist
+            .iter()
+            .position(|x| x.offset == offset)
+            .expect("");
 
         let space = self.occulist.remove(i);
 
         // check if can merge with a space already in the list
         let mut distinct = true;
         for f in self.freelist.iter_mut() {
-            
             if f.offset + f.length == space.offset {
                 f.length += space.length;
                 distinct = false;
@@ -101,20 +92,20 @@ impl Allocator {
                 distinct = false;
                 break;
             }
-
         }
 
         // if can't merge, add it
         if distinct {
             self.freelist.push(space);
-            return;            
+            return;
         }
 
         // if merged, check if it's a double merge
         for i in 0..self.freelist.len() {
             for j in 0..self.freelist.len() {
-                
-                if i == j { continue; }
+                if i == j {
+                    continue;
+                }
 
                 let space_i = self.freelist[i];
                 let space_j = self.freelist[j];
@@ -126,11 +117,9 @@ impl Allocator {
                 }
             }
         }
-
     }
 
     pub fn percent_full(&self) -> f32 {
-
         let mut allocked = 0;
 
         for i in &self.occulist {
@@ -139,7 +128,6 @@ impl Allocator {
 
         allocked as f32 / self.size as f32
     }
-
 }
 
 #[cfg(test)]
@@ -162,13 +150,12 @@ mod test {
 
     #[test]
     fn gpu_allocs_fit_blocks() {
-
         let mut x = Allocator::new(1024);
 
         let _ = x.alloc(24).expect("");
         let offset = x.alloc(10).expect("");
         let _ = x.alloc(11).expect("");
-        
+
         x.dealloc(offset);
 
         let offset = x.alloc(10).expect("");

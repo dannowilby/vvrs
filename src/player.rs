@@ -12,20 +12,19 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.0, 1.0,
 );
 
-#[allow(dead_code)]
 pub struct Player {
     pub position: (i32, i32, i32),
     pub load_radius: u32,
 
-    projection: cgmath::Matrix4<f32>,
-    view: cgmath::Matrix4<f32>,
+    pub projection: cgmath::Matrix4<f32>,
+    pub view: cgmath::Matrix4<f32>,
 }
 
 impl Default for Player {
     fn default() -> Self {
         Self {
             position: (0, 0, 0),
-            load_radius: 2,
+            load_radius: 3,
 
             projection: cgmath::perspective(
                 cgmath::Rad(f32::consts::PI * 0.70),

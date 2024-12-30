@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use block::Block;
 
 pub mod block;
+pub mod manager;
 pub mod mesher;
 pub mod pool;
 

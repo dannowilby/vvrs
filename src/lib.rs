@@ -4,11 +4,11 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
+pub mod allocator;
 pub mod chunk;
 pub mod game;
 pub mod player;
 pub mod window_state;
-pub mod allocator;
 
 pub fn run() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new().unwrap();

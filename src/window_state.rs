@@ -43,6 +43,8 @@ impl WindowState {
             .await
             .unwrap();
 
+        log::info!("Device limits ----");
+
         log::info!(
             "Maximum buffer size: {}MiB",
             device.limits().max_buffer_size / (2u64.pow(20))

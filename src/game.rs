@@ -9,15 +9,21 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::{chunk::pool::ChunkPool, player::Player};
+use crate::{chunk::manager::ChunkManager, player::Player};
 
 use super::window_state::WindowState;
 
+/// TODO:
+/// - Implement frame/fps statistics
+/// - Write a working implementation of the shader
+/// - Encode the vertices properly
+/// - Add camera input
+/// - Implement resizing
 #[derive(Default)]
 pub struct Game {
     window: Option<WindowState>,
     player: Player,
-    chunk_pool: ChunkPool,
+    chunk_m: ChunkManager,
 }
 
 impl ApplicationHandler for Game {
@@ -25,6 +31,8 @@ impl ApplicationHandler for Game {
         if self.window.is_some() {
             return;
         }
+
+        let now = Instant::now();
 
         // Set up window
         let (width, height) = (800, 500);
@@ -39,16 +47,16 @@ impl ApplicationHandler for Game {
 
         // set up game objects, player is set up by Default
 
-        self.chunk_pool = ChunkPool::initialize(&w);
+        self.chunk_m.init(&w);
 
-        let now = Instant::now();
-        // self.chunk_pool.update_chunks(&w, &self.player);
+        self.chunk_m.load_chunks(&w, &self.player);
+
+        self.window = Some(w);
+
         log::info!(
             "Initial loading took {}s",
             now.elapsed().as_micros() as f32 / 1_000_000.0
         );
-
-        self.window = Some(w);
     }
 
     fn window_event(
@@ -81,10 +89,10 @@ impl ApplicationHandler for Game {
             }
             WindowEvent::RedrawRequested => {
                 if self.player.has_changed_chunk() {
-                    // self.chunk_pool.update_chunks(state, &self.player);
+                    self.chunk_m.load_chunks(state, &self.player);
                 }
 
-                // self.chunk_pool.render(state, &self.player);
+                self.chunk_m.render(state, &self.player);
 
                 state.window.request_redraw();
             }

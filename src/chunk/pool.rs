@@ -1,9 +1,6 @@
+use std::{borrow::Cow, collections::HashMap};
 
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-};
-
+use bytemuck::bytes_of;
 use wgpu::{
     util::DrawIndirectArgs, BindGroup, BindGroupDescriptor, BindGroupEntry,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType,
@@ -12,9 +9,9 @@ use wgpu::{
     RenderPipelineDescriptor, ShaderStages, StoreOp,
 };
 
-use crate::{allocator::Allocator, chunk::MAX_CHUNK_MEMORY_USAGE, player::Player, window_state::WindowState};
+use crate::{allocator::Allocator, player::Player, window_state::WindowState};
 
-use super::{mesher::mesh, Chunk, ChunkPos, EncodedVertex};
+use super::{mesher::mesh, Chunk, EncodedVertex};
 
 struct ChunkDrawInfo {
     pub vertex_offset: u64,
@@ -45,7 +42,6 @@ pub struct ChunkPool {
 }
 
 impl ChunkPool {
-    #[allow(unused_variables, unreachable_code)]
     pub fn initialize(state: &WindowState) -> Self {
         let size = state.device.limits().max_buffer_size;
         let storage_buffer_size = size / 4;
@@ -187,16 +183,13 @@ impl ChunkPool {
                 cache: None,
             });
 
-        let free: Vec<u64> = (0..(size / MAX_CHUNK_MEMORY_USAGE as u64)).collect();
-
         Self {
-
             vertex_allocator: Allocator::new(size),
             storage_allocator: Allocator::new(storage_buffer_size),
 
             storage_bind_group: Some(storage_bind_group),
             uniform_bind_group: Some(uniform_bind_group),
-            
+
             vertex_buffer,
             uniform_buffer,
             storage_buffer,
@@ -206,16 +199,27 @@ impl ChunkPool {
         }
     }
 
+    pub fn allocated_percent(&self) -> [f32; 2] {
+        [
+            self.vertex_allocator.percent_full(),
+            self.storage_allocator.percent_full(),
+        ]
+    }
+
     /// Upload a chunk so that it can be rendered.
     pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32), chunk: Chunk) {
-
         let vertex_size = std::mem::size_of::<EncodedVertex>() as u32;
 
         let mesh = mesh(&chunk);
-        let mesh_len = vertex_size * (mesh.iter().fold(0, |acc, item: &Vec<EncodedVertex>|acc + item.len()) as u32);
-        
-        let Some(vertex_addr) = self.vertex_allocator.alloc(mesh_len as u64) else { return; }; // if we can't get a block of memory, just return
-        
+        let mesh_len = vertex_size
+            * (mesh
+                .iter()
+                .fold(0, |acc, item: &Vec<EncodedVertex>| acc + item.len()) as u32);
+
+        let Some(vertex_addr) = self.vertex_allocator.alloc(mesh_len as u64) else {
+            return;
+        }; // if we can't get a block of memory, just return
+
         let mut faces = [(0u32, 0u32); 6];
         faces[0].1 = mesh[0].len() as u32;
         for i in 1..6 {
@@ -237,8 +241,10 @@ impl ChunkPool {
         let pos = &[chunk_pos.0, chunk_pos.1, chunk_pos.2];
         let pos_length = std::mem::size_of::<[i32; 3]>();
 
-        let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else { return; }; // if we can't get a block of memory, just return
-        // upload storage data
+        let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else {
+            return;
+        }; // if we can't get a block of memory, just return
+           // upload storage data
         state.queue.write_buffer(
             self.storage_buffer
                 .as_ref()
@@ -258,9 +264,11 @@ impl ChunkPool {
             },
         );
     }
-    
+
     pub fn remove_chunk(&mut self, pos: (i32, i32, i32)) {
-        let Some(chunk_info) = self.lookup.remove(&pos) else { return; };
+        let Some(chunk_info) = self.lookup.remove(&pos) else {
+            return;
+        };
 
         self.vertex_allocator.dealloc(chunk_info.vertex_offset);
         self.storage_allocator.dealloc(chunk_info.storage_offset);
@@ -270,6 +278,7 @@ impl ChunkPool {
         let call_count = self.build_draw_list(state, player);
 
         // upload uniform buffer
+        self.upload_player_uniforms(state, player);
 
         let frame = state
             .surface
@@ -346,5 +355,19 @@ impl ChunkPool {
         );
 
         call_count
+    }
+
+    fn upload_player_uniforms(&self, state: &WindowState, player: &Player) {
+        let Some(buf) = self.uniform_buffer.as_ref() else {
+            return;
+        };
+
+        let p: [[f32; 4]; 4] = player.projection.into();
+        let x = bytes_of(&p);
+
+        let v: [[f32; 4]; 4] = player.view.into();
+        let y = bytes_of(&v);
+
+        state.queue.write_buffer(buf, 0, &[x, y].concat());
     }
 }
