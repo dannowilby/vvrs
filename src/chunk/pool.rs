@@ -324,11 +324,12 @@ impl ChunkPool {
     fn build_draw_list(&self, state: &WindowState, _player: &Player) -> u32 {
         let mut indirect_data = vec![];
 
+        // this is causing a significant slowdown
         self.lookup.values().for_each(|x| {
             let vertex_offset = x.vertex_offset;
             let storage_offset = x.storage_offset;
 
-            // we manually setting the first face to be rendered
+            // we are manually setting the first face to be rendered
             let face_offset = x.faces[0].0;
             let face_count = x.faces[0].1;
             indirect_data.push(DrawIndirectArgs {

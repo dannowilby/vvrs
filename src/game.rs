@@ -14,16 +14,20 @@ use crate::{chunk::manager::ChunkManager, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Implement frame/fps statistics
-/// - Write a working implementation of the shader
 /// - Encode the vertices properly
 /// - Add camera input
 /// - Implement resizing
+/// - Add frustum culling
+/// - Visibility graphs?
 #[derive(Default)]
 pub struct Game {
     window: Option<WindowState>,
     player: Player,
     chunk_m: ChunkManager,
+
+    acc_time: f32,
+    frames: u32,
+    time: Option<Instant>
 }
 
 impl ApplicationHandler for Game {
@@ -53,6 +57,8 @@ impl ApplicationHandler for Game {
 
         self.window = Some(w);
 
+        self.time = Some(Instant::now());
+
         log::info!(
             "Initial loading took {}s",
             now.elapsed().as_micros() as f32 / 1_000_000.0
@@ -68,6 +74,17 @@ impl ApplicationHandler for Game {
         let Some(state) = &mut self.window else {
             return;
         };
+
+        // 16000us = 16ms
+        let delta: f32 = self.time.expect("").elapsed().as_micros() as f32 / 1000.0;
+        self.acc_time += delta; // delta in milliseconds
+        self.frames += 1; // add a frame
+        if self.acc_time > 1000.0 { // if more than 1000 milliseconds
+            log::info!("Avg FPS in prev second: {:.2}", self.frames as f32);
+            self.acc_time = self.acc_time - 1000.0;
+            self.frames = 0;
+        }
+        self.time = Some(Instant::now());
 
         match event {
             WindowEvent::KeyboardInput { event, .. } => {
