@@ -22,16 +22,20 @@ pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as Ch
 #[derive(Debug, Clone, Copy)]
 pub struct EncodedVertex(pub u32);
 
+// Would probably be better to do things with this at some point
+// impl Deref for EncodedVertex {
+//     type Target = u32;
+
+//     fn deref(&self) -> &Self::Target {
+//         todo!()
+//     }
+// }
+
 impl EncodedVertex {
     pub fn to_untyped(&self) -> u32 {
         self.0
     }
 }
-
-/// The memory footprint of a maximal mesh, a proof will of which be provided in the docs.
-pub const MAX_CHUNK_MEMORY_USAGE: u32 =
-    (6 * std::mem::size_of::<EncodedVertex>() as u32) * (3 * CHUNK_SIZE.pow(3));
-pub const MAX_UNIFORM_MEMORY_USAGE: u32 = (std::mem::size_of::<i32>() * 3) as u32;
 
 /// Block position relative to the chunk.
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]

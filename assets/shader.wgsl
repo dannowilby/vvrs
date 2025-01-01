@@ -23,8 +23,24 @@ struct VertexOutput {
 };
 
 fn decode_vertex(vertex: u32) -> vec4<f32> {
+    // Constants for decoding
+    let NUM_BITS_IN_POS: u32 = 10u; // Number of bits per position (matches Rust's logic)
+    let CHUNK_SIZE: f32 = 1024.0; // Match the chunk size from Rust code
 
-    return vec4<f32>(0.0);
+    // Extract x, y, and z components using bitwise operations
+    let x: u32 = (vertex >> (2 * NUM_BITS_IN_POS)) & ((1u << NUM_BITS_IN_POS) - 1);
+    let y: u32 = (vertex >> NUM_BITS_IN_POS) & ((1u << NUM_BITS_IN_POS) - 1);
+    let z: u32 = vertex & ((1u << NUM_BITS_IN_POS) - 1);
+
+    // Convert to normalized coordinates in the range [0, CHUNK_SIZE]
+    let decoded_position: vec4<f32> = vec4<f32>(
+        f32(x) / CHUNK_SIZE,
+        f32(y) / CHUNK_SIZE,
+        f32(z) / CHUNK_SIZE,
+        1.0 // Homogeneous coordinate
+    );
+
+    return decoded_position;
 }
 
 @vertex

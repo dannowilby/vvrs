@@ -27,7 +27,7 @@ pub struct Game {
 
     acc_time: f32,
     frames: u32,
-    time: Option<Instant>
+    time: Option<Instant>,
 }
 
 impl ApplicationHandler for Game {
@@ -79,9 +79,10 @@ impl ApplicationHandler for Game {
         let delta: f32 = self.time.expect("").elapsed().as_micros() as f32 / 1000.0;
         self.acc_time += delta; // delta in milliseconds
         self.frames += 1; // add a frame
-        if self.acc_time > 1000.0 { // if more than 1000 milliseconds
+        if self.acc_time > 1000.0 {
+            // if more than 1000 milliseconds
             log::info!("Avg FPS in prev second: {:.2}", self.frames as f32);
-            self.acc_time = self.acc_time - 1000.0;
+            self.acc_time -= 1000.0;
             self.frames = 0;
         }
         self.time = Some(Instant::now());

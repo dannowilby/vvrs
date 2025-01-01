@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Instant};
 
 use crate::chunk::{block::Block, ChunkDimTy, LocalBlockPos, CHUNK_SIZE};
 
-use super::{Chunk, EncodedVertex};
+use super::{Chunk, EncodedVertex, NUM_BITS_IN_POS};
 
 /// Returns the mesh of the chunk. The resulting chunk is split by the direction
 /// of the faces.
@@ -255,20 +255,87 @@ fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<Enco
     output
 }
 
-/// Encode the vertices, not fully implemented yet
+/// Encode the vertices of a quad, defined by two opposite corners.
 fn create_quad(
-    _axis: usize,
+    axis: usize, // Axis along which the face is oriented: 0-5 for six cube faces
     LocalBlockPos(c1x, c1y, c1z): LocalBlockPos,
     LocalBlockPos(c2x, c2y, c2z): LocalBlockPos,
 ) -> Vec<EncodedVertex> {
-    vec![
-        EncodedVertex(c1x),
-        EncodedVertex(c1y),
-        EncodedVertex(c1z),
-        EncodedVertex(c2x),
-        EncodedVertex(c2y),
-        EncodedVertex(c2z),
-    ]
+    // Determine the min and max bounds of the corners
+    let min_x = c1x.min(c2x);
+    let max_x = c1x.max(c2x);
+    let min_y = c1y.min(c2y);
+    let max_y = c1y.max(c2y);
+    let min_z = c1z.min(c2z);
+    let max_z = c1z.max(c2z);
+
+    // Generate vertices based on the axis
+    match axis {
+        2 => vec![
+            // +X face
+            encode_vertex(max_x, min_y, min_z),
+            encode_vertex(max_x, max_y, min_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(max_x, min_y, min_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(max_x, min_y, max_z),
+        ],
+        5 => vec![
+            // -X face
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(min_x, max_y, min_z),
+            encode_vertex(min_x, max_y, max_z),
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(min_x, max_y, max_z),
+            encode_vertex(min_x, min_y, max_z),
+        ],
+        1 => vec![
+            // +Y face
+            encode_vertex(min_x, max_y, min_z),
+            encode_vertex(max_x, max_y, min_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(min_x, max_y, min_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(min_x, max_y, max_z),
+        ],
+        4 => vec![
+            // -Y face
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(max_x, min_y, min_z),
+            encode_vertex(max_x, min_y, max_z),
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(max_x, min_y, max_z),
+            encode_vertex(min_x, min_y, max_z),
+        ],
+        0 => vec![
+            // +Z face
+            encode_vertex(min_x, min_y, max_z),
+            encode_vertex(max_x, min_y, max_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(min_x, min_y, max_z),
+            encode_vertex(max_x, max_y, max_z),
+            encode_vertex(min_x, max_y, max_z),
+        ],
+        3 => vec![
+            // -Z face
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(max_x, min_y, min_z),
+            encode_vertex(max_x, max_y, min_z),
+            encode_vertex(min_x, min_y, min_z),
+            encode_vertex(max_x, max_y, min_z),
+            encode_vertex(min_x, max_y, min_z),
+        ],
+        _ => panic!("Invalid axis value: must be 0-5"),
+    }
+}
+
+/// Helper function to encode a vertex position into a single value.
+fn encode_vertex(x: ChunkDimTy, y: ChunkDimTy, z: ChunkDimTy) -> EncodedVertex {
+    EncodedVertex(
+        ((x & ((1 << NUM_BITS_IN_POS) - 1)) << (2 * NUM_BITS_IN_POS))
+            | ((y & ((1 << NUM_BITS_IN_POS) - 1)) << NUM_BITS_IN_POS)
+            | (z & ((1 << NUM_BITS_IN_POS) - 1)),
+    )
 }
 
 #[cfg(test)]
