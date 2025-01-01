@@ -14,7 +14,6 @@ use crate::{chunk::manager::ChunkManager, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Encode the vertices properly
 /// - Add camera input
 /// - Implement resizing
 /// - Add frustum culling
