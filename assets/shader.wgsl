@@ -1,7 +1,7 @@
 // Define bindings and layouts
 // Storage buffer for chunk data
 @group(0) @binding(0)
-var<storage, read> chunkData : array<u32>;
+var<storage, read> chunkData : array<vec3<i32>>;
 
 // Uniform buffer for matrices (e.g., projection and view)
 struct Uniforms {
@@ -14,19 +14,30 @@ var<uniform> uniforms : Uniforms;
 
 // Vertex shader inputs and outputs
 struct VertexInput {
-    @location(0) vertexIndex : u32
+    @builtin(instance_index) instance_index: u32,
+    @location(0) position: u32
 };
 
 struct VertexOutput {
-    @builtin(position) position : vec4<f32>
+    @builtin(position) clip: vec4<f32>
 };
+
+fn decode_vertex(vertex: u32) -> vec4<f32> {
+
+    return vec4<f32>(0.0);
+}
 
 @vertex
 fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
-    // Placeholder for actual vertex transformation
-    output.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    // read the chunk pos from the storage buffer and make usable
+    let chunk_pos = vec4<f32>(f32(chunkData[input.instance_index].x), f32(chunkData[input.instance_index].y), f32(chunkData[input.instance_index].z), 0.0);
+    let vertex = decode_vertex(input.position);
+
+    let position = chunk_pos + vertex;
+
+    output.clip = uniforms.projection * uniforms.view * position;
 
     return output;
 }
@@ -37,11 +48,24 @@ struct FragmentOutput {
 };
 
 @fragment
-fn fs_main() -> FragmentOutput {
+fn fs_main(input: VertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
 
-    // Placeholder color output
-    output.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    // not implemented yet
+    var color_palettes: array<vec4<f32>, 8> = array<vec4<f32>, 8> (
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+        vec4<f32>(1.0),
+    );
+
+    let selector: u32 = u32(abs(floor(input.clip.y))) % 8u;
+
+    output.color = color_palettes[selector];
 
     return output;
 }
