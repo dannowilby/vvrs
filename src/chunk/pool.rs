@@ -363,10 +363,10 @@ impl ChunkPool {
             return;
         };
 
-        let p: [[f32; 4]; 4] = player.projection.into();
+        let p: [[f32; 4]; 4] = player.get_projection().into();
         let x = bytes_of(&p);
 
-        let v: [[f32; 4]; 4] = player.view.into();
+        let v: [[f32; 4]; 4] = player.get_view().into();
         let y = bytes_of(&v);
 
         state.queue.write_buffer(buf, 0, &[x, y].concat());

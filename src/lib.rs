@@ -7,6 +7,7 @@ use winit::{
 pub mod allocator;
 pub mod chunk;
 pub mod game;
+pub mod input;
 pub mod player;
 pub mod window_state;
 
