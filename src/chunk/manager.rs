@@ -1,6 +1,10 @@
 use std::collections::HashSet;
 
-use crate::{chunk::{block::Block, LocalBlockPos}, player::Player, window_state::WindowState};
+use crate::{
+    chunk::{block::Block, LocalBlockPos},
+    player::Player,
+    window_state::WindowState,
+};
 
 use super::{pool::ChunkPool, Chunk};
 

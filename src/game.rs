@@ -14,8 +14,8 @@ use crate::{chunk::manager::ChunkManager, input::Input, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Add camera input
-/// - Implement resizing
+/// - Fix camera controller
+/// - Fix face encoding
 /// - Add frustum culling
 /// - Visibility graphs?
 #[derive(Default)]
@@ -76,20 +76,6 @@ impl ApplicationHandler for Game {
             return;
         };
 
-        // delta, in seconds
-        let delta: f32 = self.time.expect("").elapsed().as_micros() as f32 / (1000.0 * 1000.0);
-
-        self.acc_time += delta;
-        self.frames += 1;
-        if self.acc_time > 1.0 {
-            // if more than 1 second
-            log::info!("Avg FPS in prev second: {:.2}", self.frames as f32);
-            // log::info!("Current frame delta: {}", delta);
-            self.acc_time -= 1.0;
-            self.frames = 0;
-        }
-        self.time = Some(Instant::now());
-
         // for some reason, events are only captured by this if not nested in
         // the following match statement
         self.input.handle(state, &event);
@@ -101,6 +87,7 @@ impl ApplicationHandler for Game {
                 state
                     .surface
                     .configure(&state.device, &state.surface_config);
+                self.player.resize(size.width as f32 / size.height as f32);
 
                 state.window.request_redraw();
             }
@@ -108,10 +95,27 @@ impl ApplicationHandler for Game {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+
+                // delta calculations (in seconds/floating point fraction)
+                let delta: f32 = self.time.expect("").elapsed().as_micros() as f32 / (1000.0 * 1000.0);
+
+                self.acc_time += delta;
+                self.frames += 1;
+                if self.acc_time > 1.0 {
+                    // if more than 1 second
+                    log::info!("FPS: {:.2}", self.frames as f32);
+                    // log::info!("Current frame delta: {}", delta);
+                    self.acc_time -= 1.0;
+                    self.frames = 0;
+                }
+                self.time = Some(Instant::now());
+
+
                 if self.input.get_key(KeyCode::Escape) > 0.0 {
                     event_loop.exit();
                 }
 
+                // actual game logic
                 self.player.update_camera(&self.input, delta);
 
                 if self.player.has_changed_chunk() {

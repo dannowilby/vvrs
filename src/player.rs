@@ -86,6 +86,11 @@ impl Player {
         (x, y, z)
     }
 
+    pub fn resize(&mut self, aspect: f32) {
+        self.projection =
+            cgmath::perspective(cgmath::Rad(f32::consts::PI * 0.70), aspect, 0.1, 100.0);
+    }
+
     pub fn update_camera(&mut self, input: &Input, delta: f32) {
         let forward = self.target - self.eye;
         let forward_norm = forward.normalize();
