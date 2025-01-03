@@ -84,7 +84,7 @@ impl ApplicationHandler for Game {
         if self.acc_time > 1.0 {
             // if more than 1 second
             log::info!("Avg FPS in prev second: {:.2}", self.frames as f32);
-            log::info!("Current frame delta: {}", delta);
+            // log::info!("Current frame delta: {}", delta);
             self.acc_time -= 1.0;
             self.frames = 0;
         }

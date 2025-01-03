@@ -16,7 +16,7 @@ pub type ChunkDimTy = u32;
 
 /// Used for encoding the vertex position in a single vertex.
 pub const NUM_BITS_IN_POS: ChunkDimTy =
-    ChunkDimTy::ilog2(std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy;
+    ChunkDimTy::ilog2(8 * std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy;
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]

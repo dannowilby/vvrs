@@ -31,7 +31,7 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             position: (0, 0, 0),
-            load_radius: 3,
+            load_radius: 0,
 
             speed: 1.0,
 
@@ -106,9 +106,6 @@ impl Player {
         let forward_mag = forward.magnitude();
 
         if input.get_key(KeyCode::KeyD) > 0.0 {
-            // Rescale the distance between the target and the eye so
-            // that it doesn't change. The eye, therefore, still
-            // lies on the circle made by the target and eye.
             self.eye =
                 self.target - (forward + right * self.speed).normalize() * forward_mag * delta;
         }

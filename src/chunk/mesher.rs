@@ -263,11 +263,11 @@ fn create_quad(
 ) -> Vec<EncodedVertex> {
     // Determine the min and max bounds of the corners
     let min_x = c1x.min(c2x);
-    let max_x = c1x.max(c2x);
+    let max_x = c1x.max(c2x + 1);
     let min_y = c1y.min(c2y);
-    let max_y = c1y.max(c2y);
+    let max_y = c1y.max(c2y + 1);
     let min_z = c1z.min(c2z);
-    let max_z = c1z.max(c2z);
+    let max_z = c1z.max(c2z + 1);
 
     // Generate vertices based on the axis
     match axis {
@@ -331,11 +331,14 @@ fn create_quad(
 
 /// Helper function to encode a vertex position into a single value.
 fn encode_vertex(x: ChunkDimTy, y: ChunkDimTy, z: ChunkDimTy) -> EncodedVertex {
-    EncodedVertex(
-        ((x & ((1 << NUM_BITS_IN_POS) - 1)) << (2 * NUM_BITS_IN_POS))
-            | ((y & ((1 << NUM_BITS_IN_POS) - 1)) << NUM_BITS_IN_POS)
-            | (z & ((1 << NUM_BITS_IN_POS) - 1)),
-    )
+    let mut output = 0;
+    output |= x;
+    output <<= NUM_BITS_IN_POS;
+    output |= y;
+    output <<= NUM_BITS_IN_POS;
+    output |= z;
+
+    EncodedVertex(output)
 }
 
 #[cfg(test)]

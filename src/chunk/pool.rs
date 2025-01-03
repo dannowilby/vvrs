@@ -329,15 +329,17 @@ impl ChunkPool {
             let vertex_offset = x.vertex_offset;
             let storage_offset = x.storage_offset;
 
-            // we are manually setting the first face to be rendered
-            let face_offset = x.faces[0].0;
-            let face_count = x.faces[0].1;
-            indirect_data.push(DrawIndirectArgs {
-                vertex_count: face_count,
-                instance_count: 1,
-                first_vertex: vertex_offset as u32 + face_offset,
-                first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
-            });
+            // we are manually setting the all faces to be rendered
+            for i in 0..6 {
+                let face_offset = x.faces[i].0;
+                let face_count = x.faces[i].1;
+                indirect_data.push(DrawIndirectArgs {
+                    vertex_count: face_count,
+                    instance_count: 1,
+                    first_vertex: vertex_offset as u32 + face_offset,
+                    first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
+                });
+            }
         });
         let call_count = indirect_data.len() as u32;
 
