@@ -5,8 +5,8 @@ use wgpu::{
     util::DrawIndirectArgs, BindGroup, BindGroupDescriptor, BindGroupEntry,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType,
     BufferDescriptor, BufferUsages, Color, CommandEncoderDescriptor, Operations,
-    PipelineLayoutDescriptor, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, ShaderStages, StoreOp,
+    PipelineLayoutDescriptor, PolygonMode, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, ShaderStages, StoreOp,
 };
 
 use crate::{allocator::Allocator, player::Player, window_state::WindowState};
@@ -176,7 +176,10 @@ impl ChunkPool {
                     compilation_options: Default::default(),
                     targets: &[Some(swapchain_format.into())],
                 }),
-                primitive: wgpu::PrimitiveState::default(), // <--------------------------------------- May want to edit this to change defaults
+                primitive: wgpu::PrimitiveState {
+                    polygon_mode: PolygonMode::Line,
+                    ..Default::default()
+                }, // <--------------------------------------- May want to edit this to change defaults
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,

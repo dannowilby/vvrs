@@ -95,28 +95,27 @@ impl ApplicationHandler for Game {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-
                 // delta calculations (in seconds/floating point fraction)
-                let delta: f32 = self.time.expect("").elapsed().as_micros() as f32 / (1000.0 * 1000.0);
+                let delta: f32 =
+                    self.time.expect("").elapsed().as_micros() as f32 / (1000.0 * 1000.0);
 
                 self.acc_time += delta;
                 self.frames += 1;
                 if self.acc_time > 1.0 {
                     // if more than 1 second
                     log::info!("FPS: {:.2}", self.frames as f32);
-                    // log::info!("Current frame delta: {}", delta);
+                    log::info!("Current frame delta: {}", self.input.is_focused);
                     self.acc_time -= 1.0;
                     self.frames = 0;
                 }
                 self.time = Some(Instant::now());
-
 
                 if self.input.get_key(KeyCode::Escape) > 0.0 {
                     event_loop.exit();
                 }
 
                 // actual game logic
-                self.player.update_camera(&self.input, delta);
+                self.player.update_camera(&mut self.input, delta);
 
                 if self.player.has_changed_chunk() {
                     self.chunk_m.load_chunks(state, &self.player);
@@ -138,6 +137,7 @@ impl ApplicationHandler for Game {
     ) {
         if let DeviceEvent::MouseMotion { delta } = event {
             if self.input.is_focused {
+                log::info!("{:?}", delta);
                 self.input.mouse_delta(delta);
             }
         }

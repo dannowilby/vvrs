@@ -48,7 +48,7 @@ impl ChunkManager {
         }
 
         for chunk_pos in chunks_to_add {
-            let mut chunk = Chunk::default();
+            let mut chunk = Chunk::random();
             chunk.set_block(LocalBlockPos(0, 0, 0), Block(1));
             self.pool.add_chunk(state, chunk_pos, chunk);
             self.loaded_chunks.insert(chunk_pos);

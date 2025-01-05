@@ -14,14 +14,13 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 pub struct Player {
-    pub position: (i32, i32, i32),
+    pub position: cgmath::Point3<f32>,
     pub load_radius: u32,
 
     speed: f32,
-
-    eye: cgmath::Point3<f32>,
-    target: cgmath::Point3<f32>,
-    up: cgmath::Vector3<f32>,
+    sensitivity: f32,
+    yaw: f32,
+    pitch: f32,
 
     pub projection: cgmath::Matrix4<f32>,
     pub view: cgmath::Matrix4<f32>,
@@ -30,33 +29,15 @@ pub struct Player {
 impl Default for Player {
     fn default() -> Self {
         Self {
-            position: (0, 0, 0),
+            position: cgmath::Point3::<f32>::new(0.0, 0.0, 0.0),
             load_radius: 0,
 
             speed: 1.0,
+            sensitivity: 100.0,
+            yaw: 0.0,
+            pitch: 0.0,
 
-            eye: cgmath::Point3::<f32> {
-                x: 0.0,
-                y: 0.0,
-                z: -1.0,
-            },
-            target: cgmath::Point3::<f32> {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            },
-            up: cgmath::Vector3::<f32> {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            },
-
-            projection: cgmath::perspective(
-                cgmath::Rad(f32::consts::PI * 0.70),
-                800.0 / 500.0,
-                0.1,
-                100.0,
-            ),
+            projection: cgmath::perspective(cgmath::Deg(45.0), 800.0 / 500.0, 0.1, 1000.0),
             view: Matrix4::identity(),
         }
     }
@@ -68,18 +49,18 @@ impl Player {
     }
 
     pub fn get_chunk_pos(&self) -> (i32, i32, i32) {
-        let mut x = self.position.0 / CHUNK_SIZE as i32;
-        if self.position.0 < 0 {
+        let mut x = (self.position.x / CHUNK_SIZE as f32).floor() as i32;
+        if self.position.x < 0.0 {
             x -= 1;
         }
 
-        let mut y = self.position.1 / CHUNK_SIZE as i32;
-        if self.position.1 < 0 {
+        let mut y = (self.position.y / CHUNK_SIZE as f32).floor() as i32;
+        if self.position.y < 0.0 {
             y -= 1;
         }
 
-        let mut z = self.position.2 / CHUNK_SIZE as i32;
-        if self.position.2 < 0 {
+        let mut z = (self.position.z / CHUNK_SIZE as f32).floor() as i32;
+        if self.position.z < 0.0 {
             z -= 1;
         }
 
@@ -87,46 +68,77 @@ impl Player {
     }
 
     pub fn resize(&mut self, aspect: f32) {
-        self.projection =
-            cgmath::perspective(cgmath::Rad(f32::consts::PI * 0.70), aspect, 0.1, 100.0);
+        self.projection = cgmath::perspective(cgmath::Deg(45.0), aspect, 0.1, 1000.0);
     }
 
-    pub fn update_camera(&mut self, input: &Input, delta: f32) {
-        let forward = self.target - self.eye;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
-
-        if input.get_key(KeyCode::KeyW) > 0.0 && forward_mag > self.speed {
-            self.eye += forward_norm * self.speed * delta;
+    pub fn update_camera(&mut self, input: &mut Input, delta: f32) {
+        // don't update if not focused
+        if !input.is_focused {
+            return;
         }
 
-        if input.get_key(KeyCode::KeyS) > 0.0 {
-            self.eye -= forward_norm * self.speed * delta;
+        let mov = self.calculate_player_input_velocity(input, delta);
+        self.position += mov;
+
+        if input.movement.0 != 0.0 || input.movement.1 != 0.0 {
+            self.yaw += (input.movement.0) as f32 * delta * self.sensitivity;
+            self.pitch -= (input.movement.1) as f32 * delta * self.sensitivity;
+            input.movement = (0.0, 0.0);
         }
 
-        let right = forward_norm.cross(self.up);
+        // 1.55 is just below 2pi
+        self.pitch = self.pitch.clamp(-1.55, 1.55);
 
-        // Redo radius calc in case the forward/backward is pressed.
-        let forward = self.target - self.eye;
-        let forward_mag = forward.magnitude();
+        let up = cgmath::Vector3::<f32>::new(0.0, 1.0, 0.0);
 
-        if input.get_key(KeyCode::KeyD) > 0.0 {
-            self.eye =
-                self.target - (forward + right * self.speed).normalize() * forward_mag * delta;
-        }
-        if input.get_key(KeyCode::KeyS) > 0.0 {
-            self.eye =
-                self.target - (forward - right * self.speed).normalize() * forward_mag * delta;
-        }
+        let (yaw_sin, yaw_cos) = self.yaw.sin_cos();
+        let (pitch_sin, pitch_cos) = self.pitch.sin_cos();
+        let facing =
+            cgmath::Vector3::<f32>::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin)
+                .normalize();
 
-        self.view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+        self.view = cgmath::Matrix4::look_to_rh(self.position, facing, up);
     }
 
     pub fn get_projection(&self) -> cgmath::Matrix4<f32> {
-        OPENGL_TO_WGPU_MATRIX * self.projection
+        self.projection
     }
 
     pub fn get_view(&self) -> cgmath::Matrix4<f32> {
         self.view
+    }
+
+    /// Get the velocity from player input.
+    fn calculate_player_input_velocity(&self, input: &Input, delta: f32) -> cgmath::Vector3<f32> {
+        let (yaw_sin, yaw_cos) = self.yaw.sin_cos();
+        let forward = cgmath::Vector3::<f32>::new(yaw_cos, 0.0, yaw_sin).normalize();
+        let right = cgmath::Vector3::<f32>::new(-yaw_sin, 0.0, yaw_cos).normalize();
+        let mut pos = cgmath::Vector3::<f32>::new(0.0, 0.0, 0.0);
+        let move_speed = self.speed;
+        let s = input.get_key(KeyCode::KeyS);
+        let w = input.get_key(KeyCode::KeyW);
+        let a = input.get_key(KeyCode::KeyA);
+        let d = input.get_key(KeyCode::KeyD);
+        let space = input.get_key(KeyCode::Space);
+        let shift = input.get_key(KeyCode::ShiftLeft);
+        if s > 0.0 {
+            pos -= forward * move_speed * delta;
+        }
+        if w > 0.0 {
+            pos += forward * move_speed * delta;
+        }
+        if a > 0.0 {
+            pos -= right * move_speed * delta;
+        }
+        if d > 0.0 {
+            pos += right * move_speed * delta;
+        }
+        if space > 0.0 {
+            pos.y += move_speed * delta;
+        }
+        if shift > 0.0 {
+            pos.y -= move_speed * delta;
+        }
+        pos
     }
 }
