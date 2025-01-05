@@ -83,10 +83,6 @@ impl Input {
     /// Get key press state from event.
     fn keyboard_event(&mut self, window_state: &WindowState, event: &WindowEvent) {
         match event {
-            WindowEvent::Focused(f) => {
-                self.is_focused = *f;
-                if *f {}
-            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {

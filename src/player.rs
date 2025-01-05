@@ -3,7 +3,7 @@ use core::f32;
 use cgmath::{InnerSpace, Matrix4, SquareMatrix};
 use winit::keyboard::KeyCode;
 
-use crate::{chunk::CHUNK_SIZE, input::Input};
+use crate::{chunk::CHUNK_SIZE, input::Input, window_state::WindowState};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -32,8 +32,8 @@ impl Default for Player {
             position: cgmath::Point3::<f32>::new(0.0, 0.0, 0.0),
             load_radius: 0,
 
-            speed: 1.0,
-            sensitivity: 100.0,
+            speed: 6.0,
+            sensitivity: 10.0,
             yaw: 0.0,
             pitch: 0.0,
 
@@ -71,7 +71,27 @@ impl Player {
         self.projection = cgmath::perspective(cgmath::Deg(45.0), aspect, 0.1, 1000.0);
     }
 
-    pub fn update_camera(&mut self, input: &mut Input, delta: f32) {
+    pub fn update_camera(&mut self, state: &WindowState, input: &mut Input, delta: f32) {
+        if !input.is_focused && input.get_click(winit::event::MouseButton::Left) > 0.0 {
+            input.is_focused = true;
+
+            let window = &state.window;
+            window
+                .set_cursor_grab(winit::window::CursorGrabMode::Confined)
+                .unwrap();
+            window.set_cursor_visible(false);
+        }
+
+        if input.is_focused && input.get_key(KeyCode::Escape) > 0.0 {
+            input.is_focused = false;
+
+            let window = &state.window;
+            window
+                .set_cursor_grab(winit::window::CursorGrabMode::None)
+                .unwrap();
+            window.set_cursor_visible(true);
+        }
+
         // don't update if not focused
         if !input.is_focused {
             return;

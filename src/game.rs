@@ -104,18 +104,18 @@ impl ApplicationHandler for Game {
                 if self.acc_time > 1.0 {
                     // if more than 1 second
                     log::info!("FPS: {:.2}", self.frames as f32);
-                    log::info!("Current frame delta: {}", self.input.is_focused);
+                    // log::info!("Current frame delta: {}", self.input.is_focused);
                     self.acc_time -= 1.0;
                     self.frames = 0;
                 }
                 self.time = Some(Instant::now());
 
-                if self.input.get_key(KeyCode::Escape) > 0.0 {
+                if self.input.get_key(KeyCode::Backspace) > 0.0 {
                     event_loop.exit();
                 }
 
                 // actual game logic
-                self.player.update_camera(&mut self.input, delta);
+                self.player.update_camera(state, &mut self.input, delta);
 
                 if self.player.has_changed_chunk() {
                     self.chunk_m.load_chunks(state, &self.player);
@@ -137,7 +137,7 @@ impl ApplicationHandler for Game {
     ) {
         if let DeviceEvent::MouseMotion { delta } = event {
             if self.input.is_focused {
-                log::info!("{:?}", delta);
+                // log::info!("{:?}", delta);
                 self.input.mouse_delta(delta);
             }
         }
