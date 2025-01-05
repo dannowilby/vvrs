@@ -262,11 +262,11 @@ fn create_quad(
     LocalBlockPos(c2x, c2y, c2z): LocalBlockPos,
 ) -> Vec<EncodedVertex> {
     // Determine the min and max bounds of the corners
-    let min_x = c1x.min(c2x);
+    let min_x = c1x.min(c2x + 1);
     let max_x = c1x.max(c2x + 1);
-    let min_y = c1y.min(c2y);
+    let min_y = c1y.min(c2y + 1);
     let max_y = c1y.max(c2y + 1);
-    let min_z = c1z.min(c2z);
+    let min_z = c1z.min(c2z + 1);
     let max_z = c1z.max(c2z + 1);
 
     // Generate vertices based on the axis
@@ -307,7 +307,7 @@ fn create_quad(
             encode_vertex(max_x, min_y, max_z),
             encode_vertex(min_x, min_y, max_z),
         ],
-        0 => vec![
+        3 => vec![
             // +Z face
             encode_vertex(min_x, min_y, max_z),
             encode_vertex(max_x, min_y, max_z),
@@ -316,7 +316,7 @@ fn create_quad(
             encode_vertex(max_x, max_y, max_z),
             encode_vertex(min_x, max_y, max_z),
         ],
-        3 => vec![
+        0 => vec![
             // -Z face
             encode_vertex(min_x, min_y, min_z),
             encode_vertex(max_x, min_y, min_z),

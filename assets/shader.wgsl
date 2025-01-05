@@ -53,7 +53,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     let chunk_pos = vec4<f32>(f32(chunkData[input.instance_index].x), f32(chunkData[input.instance_index].y), f32(chunkData[input.instance_index].z), 0.0);
     let vertex = decode_vertex(input.position);
 
-    let position = vertex;
+    let position = vertex + chunk_pos;
 
     output.clip = uniforms.projection * uniforms.view * position;
 
