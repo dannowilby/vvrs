@@ -14,7 +14,6 @@ use crate::{chunk::manager::ChunkManager, input::Input, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Fix camera controller
 /// - Fix face encoding
 /// - Add frustum culling
 /// - Visibility graphs?

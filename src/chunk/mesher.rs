@@ -136,6 +136,7 @@ fn add_faces(
 
 /// Greedy mesh the quads,
 /// note: this is not guaranteed to produce optimal meshes
+/// THIS ALGORITHM HAS A BUG IN IT FFS
 fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<EncodedVertex> {
     // create output mesh data vec
     let mut output = Vec::<EncodedVertex>::new();
@@ -346,6 +347,19 @@ mod tests {
 
     use super::*;
 
+    #[allow(dead_code)]
+    fn decode_vertex(v: &EncodedVertex) -> (ChunkDimTy, ChunkDimTy, ChunkDimTy) {
+        let mut t = v.0;
+
+        let z = t & 31;
+        t >>= NUM_BITS_IN_POS;
+        let y = t & 31;
+        t >>= NUM_BITS_IN_POS;
+        let x = t & 31;
+
+        (x, y, z)
+    }
+
     #[test]
     fn can_modify_chunk() {
         let mut chunk = Chunk::default();
@@ -375,6 +389,10 @@ mod tests {
         let data = mesh(&chunk);
 
         for i in data {
+            // println!(
+            //     "{:?}",
+            //     i.iter().map(|f| decode_vertex(f)).collect::<Vec<_>>()
+            // );
             assert!(i.len() == 6);
         }
     }

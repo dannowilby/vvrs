@@ -38,7 +38,7 @@ impl EncodedVertex {
 }
 
 /// Block position relative to the chunk.
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct LocalBlockPos(pub ChunkDimTy, pub ChunkDimTy, pub ChunkDimTy);
 
 impl LocalBlockPos {
