@@ -24,15 +24,15 @@ struct VertexOutput {
 
 fn decode_vertex(vertex: u32) -> vec4<f32> {
     
-    let NUM_BITS_IN_POS: u32 = 5u;
+    let NUM_BITS_IN_POS: u32 = 6u;
 
-    let t1 = 31u << NUM_BITS_IN_POS * 0;
+    let t1 = 63u << NUM_BITS_IN_POS * 0;
     let z: u32 = (vertex & t1) >> (NUM_BITS_IN_POS * 0);
     
-    let t2 = 31u << NUM_BITS_IN_POS * 1;
+    let t2 = 63u << NUM_BITS_IN_POS * 1;
     let y: u32 = (vertex & t2) >> (NUM_BITS_IN_POS * 1);
     
-    let t3 = 31u << NUM_BITS_IN_POS * 2;
+    let t3 = 63u << NUM_BITS_IN_POS * 2;
     let x: u32 = (vertex & t3) >> (NUM_BITS_IN_POS * 2);
 
     let decoded_position: vec4<f32> = vec4<f32>(

@@ -153,6 +153,7 @@ fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<Enco
         let (pos, block) = hm.iter().take(1).collect::<Vec<_>>()[0];
         let pos = *pos; // we clone the values to avoid appease the borrow checker
         let block = *block;
+
         hm.remove(&pos);
 
         let i = growth_axes[0];
@@ -249,7 +250,6 @@ fn greedy_merge(hm: &mut HashMap<LocalBlockPos, Block>, axis: usize) -> Vec<Enco
                 }
             }
         }
-
         output.append(&mut create_quad(axis, quad1, quad2));
     }
 
@@ -263,6 +263,11 @@ fn create_quad(
     LocalBlockPos(c2x, c2y, c2z): LocalBlockPos,
 ) -> Vec<EncodedVertex> {
     // Determine the min and max bounds of the corners
+
+    // the positions are 0-31 inclusive, whereas
+    // the vertices are 0-32 inclusive, so encoding them
+    // with 5 bits causes issues at the upper ends of the blocks
+    // we still need to add one to quad2,
     let min_x = c1x.min(c2x + 1);
     let max_x = c1x.max(c2x + 1);
     let min_y = c1y.min(c2y + 1);
@@ -351,11 +356,11 @@ mod tests {
     fn decode_vertex(v: &EncodedVertex) -> (ChunkDimTy, ChunkDimTy, ChunkDimTy) {
         let mut t = v.0;
 
-        let z = t & 31;
+        let z = t & 63;
         t >>= NUM_BITS_IN_POS;
-        let y = t & 31;
+        let y = t & 63;
         t >>= NUM_BITS_IN_POS;
-        let x = t & 31;
+        let x = t & 63;
 
         (x, y, z)
     }
@@ -389,10 +394,10 @@ mod tests {
         let data = mesh(&chunk);
 
         for i in data {
-            // println!(
-            //     "{:?}",
-            //     i.iter().map(|f| decode_vertex(f)).collect::<Vec<_>>()
-            // );
+            println!(
+                "{:?}",
+                i.iter().map(|f| decode_vertex(f)).collect::<Vec<_>>()
+            );
             assert!(i.len() == 6);
         }
     }

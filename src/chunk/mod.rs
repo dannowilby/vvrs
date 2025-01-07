@@ -14,9 +14,9 @@ pub mod pool;
 /// other numeric types have not been tested yet.
 pub type ChunkDimTy = u32;
 
-/// Used for encoding the vertex position in a single vertex.
+/// Used for encoding the vertex position in a single vertex. We add a bit to encompass when the vertex pos is the max (ie 32 in a 32 bit chunk won't fit inside 5 bits). This can probably be changed if padding is added.
 pub const NUM_BITS_IN_POS: ChunkDimTy =
-    ChunkDimTy::ilog2(8 * std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy;
+    ChunkDimTy::ilog2(8 * std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) + 1 as ChunkDimTy;
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]

@@ -1,10 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{
-    chunk::{LocalBlockPos, CHUNK_SIZE},
-    player::Player,
-    window_state::WindowState,
-};
+use crate::{player::Player, window_state::WindowState};
 
 use super::{pool::ChunkPool, Chunk};
 
@@ -48,17 +44,7 @@ impl ChunkManager {
         }
 
         for chunk_pos in chunks_to_add {
-            let mut chunk = Chunk::default();
-
-            for i in 0..CHUNK_SIZE {
-                for j in 0..CHUNK_SIZE {
-                    for k in 0..CHUNK_SIZE {
-                        let pos = LocalBlockPos(i, j, k);
-                        chunk.set_block(pos, crate::chunk::block::Block(1));
-                    }
-                }
-            }
-            self.pool.add_chunk(state, chunk_pos, chunk);
+            self.pool.add_chunk(state, chunk_pos, Chunk::random());
             self.loaded_chunks.insert(chunk_pos);
         }
 
