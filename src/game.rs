@@ -14,7 +14,7 @@ use crate::{chunk::manager::ChunkManager, input::Input, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Fix face encoding
+/// - Fix chunk pos storage buffer
 /// - Add frustum culling
 /// - Visibility graphs?
 #[derive(Default)]

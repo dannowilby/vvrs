@@ -79,7 +79,7 @@ impl Chunk {
         for i in 0..CHUNK_SIZE {
             for j in 0..CHUNK_SIZE {
                 for k in 0..CHUNK_SIZE {
-                    if rand::random::<u8>() < 2 {
+                    if rand::random::<u8>() < u8::MAX - 1 {
                         chunk.set_block(LocalBlockPos(i, j, k), Block(1));
                     }
                 }

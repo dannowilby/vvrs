@@ -30,7 +30,7 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             position: cgmath::Point3::<f32>::new(0.0, 0.0, 0.0),
-            load_radius: 1,
+            load_radius: 0,
 
             speed: 6.0,
             sensitivity: 10.0,

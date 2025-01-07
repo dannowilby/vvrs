@@ -50,7 +50,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
     // read the chunk pos from the storage buffer and make usable
-    let chunk_pos = vec4<f32>(f32(chunkData[input.instance_index].x), f32(chunkData[input.instance_index].y), f32(chunkData[input.instance_index].z), 0.0);
+    let chunk_pos = 32.0 * vec4<f32>(f32(chunkData[input.instance_index].x), f32(chunkData[input.instance_index].y), f32(chunkData[input.instance_index].z), 0.0);
     let vertex = decode_vertex(input.position);
 
     let position = vertex + chunk_pos;
