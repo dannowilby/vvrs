@@ -22,6 +22,15 @@ struct VertexOutput {
     @builtin(position) clip: vec4<f32>
 };
 
+fn create_translation_matrix(translation: vec3<i32>) -> mat4x4<f32> {
+    return mat4x4<f32>(
+        vec4<f32>(1.0, 0.0, 0.0, 0.0),  // First column
+        vec4<f32>(0.0, 1.0, 0.0, 0.0),  // Second column
+        vec4<f32>(0.0, 0.0, 1.0, 0.0),  // Third column
+        vec4<f32>(f32(translation.x), f32(translation.y), f32(translation.z), 1.0) // Fourth column
+    );
+}
+
 fn decode_vertex(vertex: u32) -> vec4<f32> {
     
     let NUM_BITS_IN_POS: u32 = 6u;
@@ -50,12 +59,10 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
     // read the chunk pos from the storage buffer and make usable
-    let chunk_pos = 32.0 * vec4<f32>(f32(chunkData[input.instance_index].x), f32(chunkData[input.instance_index].y), f32(chunkData[input.instance_index].z), 0.0);
     let vertex = decode_vertex(input.position);
+    let model = create_translation_matrix(chunkData[input.instance_index]);
 
-    let position = vertex + chunk_pos;
-
-    output.clip = uniforms.projection * uniforms.view * position;
+    output.clip = uniforms.projection * uniforms.view * model * vertex;
 
     return output;
 }

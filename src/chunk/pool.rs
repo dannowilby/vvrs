@@ -241,19 +241,20 @@ impl ChunkPool {
             bytemuck::cast_slice(data.as_slice()),
         );
 
-        let pos = &[chunk_pos.0, chunk_pos.1, chunk_pos.2];
+        let pos = [32 * chunk_pos.0, 32 * chunk_pos.1, 32 * chunk_pos.2];
         let pos_length = std::mem::size_of::<[i32; 3]>();
 
         let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else {
             return;
         }; // if we can't get a block of memory, just return
            // upload storage data
+
         state.queue.write_buffer(
             self.storage_buffer
                 .as_ref()
-                .expect("No uniform buffer found! It should be here."),
+                .expect("No storage buffer found! It should be here."),
             storage_addr,
-            bytemuck::bytes_of(pos),
+            bytemuck::bytes_of(&pos),
         );
 
         // create the chunk info so that we can create indirect draw calls
@@ -262,7 +263,7 @@ impl ChunkPool {
             chunk_pos,
             ChunkDrawInfo {
                 vertex_offset: vertex_addr,
-                storage_offset: storage_addr,
+                storage_offset: storage_addr / pos_length as u64,
                 faces,
             },
         );
@@ -318,7 +319,11 @@ impl ChunkPool {
             render_pass.set_bind_group(0, self.storage_bind_group.as_ref().unwrap(), &[]);
             render_pass.set_bind_group(1, self.uniform_bind_group.as_ref().unwrap(), &[]);
 
-            render_pass.multi_draw_indirect(self.indirect_buffer.as_ref().unwrap(), 0, call_count);
+            render_pass.multi_draw_indirect(
+                self.indirect_buffer.as_ref().unwrap(),
+                0,
+                call_count + 1,
+            );
         }
         state.queue.submit(Some(encoder.finish()));
         frame.present();
