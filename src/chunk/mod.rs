@@ -88,4 +88,18 @@ impl Chunk {
 
         chunk
     }
+
+    pub fn full() -> Self {
+        let mut chunk = Chunk::default();
+
+        for i in 0..CHUNK_SIZE {
+            for j in 0..CHUNK_SIZE {
+                for k in 0..CHUNK_SIZE {
+                    chunk.set_block(LocalBlockPos(i, j, k), Block(1));
+                }
+            }
+        }
+
+        chunk
+    }
 }
