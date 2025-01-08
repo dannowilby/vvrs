@@ -230,12 +230,9 @@ impl ChunkPool {
             faces[i].0 = faces[i - 1].1 + faces[i - 1].0;
             faces[i].1 = mesh[i].len() as u32;
         }
-        println!("vaddr {}", vertex_addr);
-        println!("faces {:?}", faces);
 
         // upload vertex data
         let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
-        println!("dl: {}", data.len());
         state.queue.write_buffer(
             self.vertex_buffer
                 .as_ref()
@@ -245,7 +242,6 @@ impl ChunkPool {
         );
 
         let pos = [32 * chunk_pos.0, 32 * chunk_pos.1, 32 * chunk_pos.2];
-        println!("pos: {:?}", pos);
         let pos_length = std::mem::size_of::<[i32; 3]>();
 
         let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else {
@@ -253,7 +249,6 @@ impl ChunkPool {
         }; // if we can't get a block of memory, just return
            // upload storage data
 
-        println!("addr {}", storage_addr);
         state.queue.write_buffer(
             self.storage_buffer
                 .as_ref()
@@ -338,12 +333,7 @@ impl ChunkPool {
         let mut indirect_data = vec![];
 
         // this is causing a significant slowdown
-        let mut count = 0;
         self.lookup.values().for_each(|x| {
-            if count > 1 {
-                return;
-            }
-            count += 1;
             let vertex_offset = x.vertex_offset;
             let storage_offset = x.storage_offset;
 
