@@ -380,24 +380,11 @@ mod tests {
 
     #[test]
     fn can_mesh_chunk() {
-        let mut chunk = Chunk::default();
-
-        for i in 0..CHUNK_SIZE {
-            for j in 0..CHUNK_SIZE {
-                for k in 0..CHUNK_SIZE {
-                    let pos = LocalBlockPos(i, j, k);
-                    chunk.set_block(pos, Block(1));
-                }
-            }
-        }
+        let chunk = Chunk::full();
 
         let data = mesh(&chunk);
 
         for i in data {
-            println!(
-                "{:?}",
-                i.iter().map(|f| decode_vertex(f)).collect::<Vec<_>>()
-            );
             assert!(i.len() == 6);
         }
     }
