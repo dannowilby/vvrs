@@ -158,7 +158,7 @@ impl ChunkPool {
                 ),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     buffers: &[wgpu::VertexBufferLayout {
                         array_stride: std::mem::size_of::<EncodedVertex>() as wgpu::BufferAddress,
                         step_mode: wgpu::VertexStepMode::Vertex,
@@ -172,7 +172,7 @@ impl ChunkPool {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_main",
+                    entry_point: Some("fs_main"),
                     compilation_options: Default::default(),
                     targets: &[Some(swapchain_format.into())],
                 }),
