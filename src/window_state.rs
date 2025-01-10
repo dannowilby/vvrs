@@ -33,7 +33,8 @@ impl WindowState {
             required_features: Features::default()
                 .union(Features::MULTI_DRAW_INDIRECT)
                 .union(Features::POLYGON_MODE_LINE)
-                .union(Features::INDIRECT_FIRST_INSTANCE),
+                .union(Features::INDIRECT_FIRST_INSTANCE)
+                .union(Features::MULTI_DRAW_INDIRECT_COUNT),
             required_limits: wgpu::Limits::downlevel_defaults(),
             memory_hints: wgpu::MemoryHints::MemoryUsage,
         };

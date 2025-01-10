@@ -20,6 +20,7 @@ pub const NUM_BITS_IN_POS: ChunkDimTy =
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EncodedVertex(pub u32);
 
 // Would probably be better to do things with this at some point

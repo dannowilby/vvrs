@@ -178,8 +178,10 @@ impl ChunkPool {
                 }),
                 primitive: wgpu::PrimitiveState {
                     polygon_mode: PolygonMode::Line,
+                    cull_mode: None,
+                    front_face: wgpu::FrontFace::Cw,
                     ..Default::default()
-                }, // <--------------------------------------- May want to edit this to change defaults
+                },
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
@@ -312,6 +314,7 @@ impl ChunkPool {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+            render_pass.push_debug_group("Prepare data for draw.");
             render_pass.set_pipeline(self.pipeline.as_ref().unwrap());
 
             render_pass.set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..));
@@ -319,21 +322,24 @@ impl ChunkPool {
             render_pass.set_bind_group(0, self.storage_bind_group.as_ref().unwrap(), &[]);
             render_pass.set_bind_group(1, self.uniform_bind_group.as_ref().unwrap(), &[]);
 
+            render_pass.pop_debug_group();
+            render_pass.insert_debug_marker("Draw!");
             render_pass.multi_draw_indirect(
                 self.indirect_buffer.as_ref().unwrap(),
                 0,
-                call_count + 1,
+                call_count,
             );
         }
-        state.queue.submit(Some(encoder.finish()));
+        state.queue.submit([encoder.finish()]);
         frame.present();
     }
 
+    // TODO: Debug by rendering one chunk at a time
     fn build_draw_list(&self, state: &WindowState, _player: &Player) -> u32 {
         let mut indirect_data = vec![];
 
         // this is causing a significant slowdown
-        self.lookup.values().for_each(|x| {
+        for x in self.lookup.values() {
             let vertex_offset = x.vertex_offset;
             let storage_offset = x.storage_offset;
 
@@ -348,7 +354,7 @@ impl ChunkPool {
                     first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
                 });
             }
-        });
+        }
         let call_count = indirect_data.len() as u32;
 
         // submit the data
@@ -357,6 +363,7 @@ impl ChunkPool {
             .flat_map(|f| f.as_bytes())
             .cloned()
             .collect::<Vec<_>>();
+
         state.queue.write_buffer(
             self.indirect_buffer
                 .as_ref()
