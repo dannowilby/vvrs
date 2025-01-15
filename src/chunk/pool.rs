@@ -212,7 +212,11 @@ impl ChunkPool {
     }
 
     /// Upload a chunk so that it can be rendered.
+    #[allow(unreachable_code, unused_variables)]
     pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32), chunk: Chunk) {
+        panic!("NEED TO DOUBLE CHECK ALIGNMENT RULES FFS");
+
+        log::debug!("ADDING CHUNK {:?}", chunk_pos);
         let vertex_size = std::mem::size_of::<EncodedVertex>() as u32;
 
         let mesh = mesh(&chunk);
@@ -233,6 +237,10 @@ impl ChunkPool {
             faces[i].1 = mesh[i].len() as u32;
         }
 
+        log::debug!("Chunk mesh offset: {}", vertex_addr);
+        log::debug!("Chunk mesh: {:?}", mesh);
+        log::debug!("Chunk face data: {:?}", faces);
+
         // upload vertex data
         let data: Vec<_> = mesh.into_iter().flatten().map(|x| x.to_untyped()).collect();
         state.queue.write_buffer(
@@ -250,6 +258,13 @@ impl ChunkPool {
             return;
         }; // if we can't get a block of memory, just return
            // upload storage data
+
+        log::debug!("Storage translation offset: {}", storage_addr);
+        log::debug!(
+            "Inserting into storage buffer: {:?} (size={})",
+            pos,
+            pos_length
+        );
 
         state.queue.write_buffer(
             self.storage_buffer
@@ -269,6 +284,8 @@ impl ChunkPool {
                 faces,
             },
         );
+
+        log::debug!("DONE UPLOADING CHUNK");
     }
 
     pub fn remove_chunk(&mut self, pos: (i32, i32, i32)) {
@@ -324,11 +341,7 @@ impl ChunkPool {
 
             render_pass.pop_debug_group();
             render_pass.insert_debug_marker("Draw!");
-            render_pass.multi_draw_indirect(
-                self.indirect_buffer.as_ref().unwrap(),
-                0,
-                call_count,
-            );
+            render_pass.multi_draw_indirect(self.indirect_buffer.as_ref().unwrap(), 0, call_count);
         }
         state.queue.submit([encoder.finish()]);
         frame.present();
