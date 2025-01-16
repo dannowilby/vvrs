@@ -212,10 +212,7 @@ impl ChunkPool {
     }
 
     /// Upload a chunk so that it can be rendered.
-    #[allow(unreachable_code, unused_variables)]
     pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32), chunk: Chunk) {
-        panic!("NEED TO DOUBLE CHECK ALIGNMENT RULES FFS");
-
         log::debug!("ADDING CHUNK {:?}", chunk_pos);
         let vertex_size = std::mem::size_of::<EncodedVertex>() as u32;
 
@@ -251,8 +248,9 @@ impl ChunkPool {
             bytemuck::cast_slice(data.as_slice()),
         );
 
-        let pos = [32 * chunk_pos.0, 32 * chunk_pos.1, 32 * chunk_pos.2];
-        let pos_length = std::mem::size_of::<[i32; 3]>();
+        // We include an additional 0 so that we don't have to do any trickery trying to get the alignment correct
+        let pos = [32 * chunk_pos.0, 32 * chunk_pos.1, 32 * chunk_pos.2, 0];
+        let pos_length = std::mem::size_of::<[i32; 4]>();
 
         let Some(storage_addr) = self.storage_allocator.alloc(pos_length as u64) else {
             return;
@@ -279,7 +277,8 @@ impl ChunkPool {
         self.lookup.insert(
             chunk_pos,
             ChunkDrawInfo {
-                vertex_offset: vertex_addr,
+                // these offsets are the indices into the buffer, not the actual memory location!
+                vertex_offset: vertex_addr / vertex_size as u64,
                 storage_offset: storage_addr / pos_length as u64,
                 faces,
             },
@@ -347,7 +346,6 @@ impl ChunkPool {
         frame.present();
     }
 
-    // TODO: Debug by rendering one chunk at a time
     fn build_draw_list(&self, state: &WindowState, _player: &Player) -> u32 {
         let mut indirect_data = vec![];
 
@@ -368,6 +366,7 @@ impl ChunkPool {
                 });
             }
         }
+
         let call_count = indirect_data.len() as u32;
 
         // submit the data

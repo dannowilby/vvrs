@@ -44,7 +44,7 @@ impl ChunkManager {
         }
 
         for chunk_pos in chunks_to_add {
-            self.pool.add_chunk(state, chunk_pos, Chunk::full());
+            self.pool.add_chunk(state, chunk_pos, Chunk::random());
             self.loaded_chunks.insert(chunk_pos);
         }
 
