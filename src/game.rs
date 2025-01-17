@@ -14,9 +14,12 @@ use crate::{chunk::manager::ChunkManager, input::Input, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Fix chunk pos storage buffer
 /// - Add frustum culling
 /// - Visibility graphs?
+/// - Chunk padding?
+/// - Real terrain
+/// - SSAO
+/// - Block textures/colors?
 #[derive(Default)]
 pub struct Game {
     window: Option<WindowState>,

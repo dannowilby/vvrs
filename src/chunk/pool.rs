@@ -9,7 +9,7 @@ use wgpu::{
     RenderPipeline, RenderPipelineDescriptor, ShaderStages, StoreOp,
 };
 
-use crate::{allocator::Allocator, player::Player, window_state::WindowState};
+use crate::{player::Player, util::allocator::Allocator, window_state::WindowState};
 
 use super::{mesher::mesh, Chunk, EncodedVertex};
 

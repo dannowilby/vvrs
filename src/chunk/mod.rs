@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use block::Block;
 
 pub mod block;
+pub mod culling;
 pub mod manager;
 pub mod mesher;
 pub mod pool;
@@ -53,6 +54,10 @@ impl LocalBlockPos {
         }
 
         Some(LocalBlockPos(x.unwrap(), y.unwrap(), z.unwrap()))
+    }
+
+    fn safe_add(p1: &LocalBlockPos, p2: &LocalBlockPos) -> Option<LocalBlockPos> {
+        Some(LocalBlockPos(p1.0 + p2.0, p1.1 + p2.1, p1.2 + p2.2))
     }
 }
 

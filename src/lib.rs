@@ -4,11 +4,11 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-pub mod allocator;
 pub mod chunk;
 pub mod game;
 pub mod input;
 pub mod player;
+pub mod util;
 pub mod window_state;
 
 pub fn run() -> Result<(), EventLoopError> {
