@@ -62,8 +62,8 @@ impl LocalBlockPos {
     }
 }
 
-#[allow(dead_code)]
-pub struct ChunkPos(i32, i32, i32);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct ChunkPos(pub i32, pub i32, pub i32);
 
 #[derive(Default)]
 pub struct Chunk {

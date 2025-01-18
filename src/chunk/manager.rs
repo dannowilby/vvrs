@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use crate::{player::Player, window_state::WindowState};
+use crate::{chunk::ChunkPos, player::Player, window_state::WindowState};
 
 use super::{pool::ChunkPool, Chunk};
 
 #[derive(Default)]
 pub struct ChunkManager {
     pool: ChunkPool,
-    loaded_chunks: HashSet<(i32, i32, i32)>,
+    loaded_chunks: HashSet<ChunkPos>,
 }
 
 impl ChunkManager {
@@ -17,9 +17,8 @@ impl ChunkManager {
 
     /// Recalculates the chunks that need to be loaded, and loads them.
     pub fn load_chunks(&mut self, state: &WindowState, player: &Player) {
-        let mut chunks_to_remove: HashSet<(i32, i32, i32)> =
-            self.loaded_chunks.iter().cloned().collect();
-        let mut chunks_to_add = Vec::<(i32, i32, i32)>::new();
+        let mut chunks_to_remove: HashSet<_> = self.loaded_chunks.iter().cloned().collect();
+        let mut chunks_to_add = Vec::<ChunkPos>::new();
 
         let pos = player.get_chunk_pos();
         let r = player.load_radius as i32;
@@ -27,7 +26,7 @@ impl ChunkManager {
         for x in (pos.0 - r)..=(pos.0 + r) {
             for y in (pos.0 - r)..=(pos.0 + r) {
                 for z in (pos.0 - r)..=(pos.0 + r) {
-                    let new_pos = (x, y, z);
+                    let new_pos = ChunkPos(x, y, z);
 
                     if !self.loaded_chunks.contains(&new_pos) {
                         chunks_to_add.push(new_pos);

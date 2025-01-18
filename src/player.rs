@@ -3,7 +3,11 @@ use core::f32;
 use cgmath::{InnerSpace, Matrix4, SquareMatrix};
 use winit::keyboard::KeyCode;
 
-use crate::{chunk::CHUNK_SIZE, input::Input, window_state::WindowState};
+use crate::{
+    chunk::{ChunkPos, CHUNK_SIZE},
+    input::Input,
+    window_state::WindowState,
+};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -48,7 +52,7 @@ impl Player {
         false
     }
 
-    pub fn get_chunk_pos(&self) -> (i32, i32, i32) {
+    pub fn get_chunk_pos(&self) -> ChunkPos {
         let mut x = (self.position.x / CHUNK_SIZE as f32).floor() as i32;
         if self.position.x < 0.0 {
             x -= 1;
@@ -64,7 +68,7 @@ impl Player {
             z -= 1;
         }
 
-        (x, y, z)
+        ChunkPos(x, y, z)
     }
 
     pub fn resize(&mut self, aspect: f32) {

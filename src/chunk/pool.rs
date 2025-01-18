@@ -11,7 +11,7 @@ use wgpu::{
 
 use crate::{player::Player, util::allocator::Allocator, window_state::WindowState};
 
-use super::{mesher::mesh, traverse, visibility::VisibilityGraph, Chunk, EncodedVertex};
+use super::{mesher::mesh, traverse, visibility::VisibilityGraph, Chunk, ChunkPos, EncodedVertex};
 
 pub struct ChunkDrawInfo {
     pub vertex_offset: u64,
@@ -39,7 +39,7 @@ pub struct ChunkPool {
     storage_bind_group: Option<BindGroup>,
     uniform_bind_group: Option<BindGroup>,
 
-    lookup: HashMap<(i32, i32, i32), ChunkDrawInfo>,
+    lookup: HashMap<ChunkPos, ChunkDrawInfo>,
 
     pipeline: Option<RenderPipeline>,
 }
@@ -215,7 +215,7 @@ impl ChunkPool {
     }
 
     /// Upload a chunk so that it can be rendered.
-    pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: (i32, i32, i32), chunk: Chunk) {
+    pub fn add_chunk(&mut self, state: &WindowState, chunk_pos: ChunkPos, chunk: Chunk) {
         log::debug!("ADDING CHUNK {:?}", chunk_pos);
         let vertex_size = std::mem::size_of::<EncodedVertex>() as u32;
 
@@ -293,7 +293,7 @@ impl ChunkPool {
         log::debug!("DONE UPLOADING CHUNK");
     }
 
-    pub fn remove_chunk(&mut self, pos: (i32, i32, i32)) {
+    pub fn remove_chunk(&mut self, pos: ChunkPos) {
         let Some(chunk_info) = self.lookup.remove(&pos) else {
             return;
         };
