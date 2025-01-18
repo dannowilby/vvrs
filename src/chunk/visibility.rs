@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::slice::Iter;
 
 use crate::util::vec_set::VecSet;
@@ -54,7 +54,6 @@ impl Side {
 /// A 6x6 matrix to keep track of which sides we can enter and exit from.
 #[derive(Debug)]
 pub struct VisibilityGraph([[bool; 6]; 6]);
-pub type VisibilityGraphStorage = HashMap<String, VisibilityGraph>;
 
 impl VisibilityGraph {
     pub const EMPTY_GRAPH: VisibilityGraph = VisibilityGraph([

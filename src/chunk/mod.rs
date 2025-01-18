@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use block::Block;
 
 pub mod block;
-pub mod culling;
 pub mod manager;
 pub mod mesher;
 pub mod pool;
+pub mod traverse;
+pub mod visibility;
 
 /// This type indicates how large our chunks are. A ChunkDimTy of u32 indicates
 /// that our chunk will be 32x32x32 blocks. We tie the type together with the

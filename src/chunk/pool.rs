@@ -11,14 +11,17 @@ use wgpu::{
 
 use crate::{player::Player, util::allocator::Allocator, window_state::WindowState};
 
-use super::{mesher::mesh, Chunk, EncodedVertex};
+use super::{mesher::mesh, traverse, visibility::VisibilityGraph, Chunk, EncodedVertex};
 
-struct ChunkDrawInfo {
+pub struct ChunkDrawInfo {
     pub vertex_offset: u64,
     pub storage_offset: u64,
 
     /// offset and length for each face mesh
     pub faces: [(u32, u32); 6],
+
+    /// Used to traverse the world and identify which chunk/chunk faces need to be rendered
+    pub vis_graph: VisibilityGraph,
 }
 
 /// Manages chunk vertex data. When we want to draw a chunk, we pass a list of
@@ -272,6 +275,8 @@ impl ChunkPool {
             bytemuck::bytes_of(&pos),
         );
 
+        let vis_graph = VisibilityGraph::from_chunk(&chunk);
+
         // create the chunk info so that we can create indirect draw calls
         // from this
         self.lookup.insert(
@@ -281,6 +286,7 @@ impl ChunkPool {
                 vertex_offset: vertex_addr / vertex_size as u64,
                 storage_offset: storage_addr / pos_length as u64,
                 faces,
+                vis_graph,
             },
         );
 
@@ -297,9 +303,12 @@ impl ChunkPool {
     }
 
     pub fn render(&self, state: &WindowState, player: &Player, _build_list: ()) {
-        let call_count = self.build_draw_list(state, player);
+        // Build a vec of all the chunk faces that need to be drawn, then upload it to the GPU
+        let draw_list = traverse::build_draw_list(&self.lookup, player);
+        let call_count = draw_list.len() as u32;
+        self.upload_draw_buffer(state, draw_list);
 
-        // upload uniform buffer
+        // Upload player projection and view matrices
         self.upload_player_uniforms(state, player);
 
         let frame = state
@@ -346,30 +355,22 @@ impl ChunkPool {
         frame.present();
     }
 
-    fn build_draw_list(&self, state: &WindowState, _player: &Player) -> u32 {
-        let mut indirect_data = vec![];
+    fn upload_player_uniforms(&self, state: &WindowState, player: &Player) {
+        let Some(buf) = self.uniform_buffer.as_ref() else {
+            return;
+        };
 
-        // this is causing a significant slowdown
-        for x in self.lookup.values() {
-            let vertex_offset = x.vertex_offset;
-            let storage_offset = x.storage_offset;
+        let p: [[f32; 4]; 4] = player.get_projection().into();
+        let x = bytes_of(&p);
 
-            // we are manually setting the all faces to be rendered
-            for i in 0..6 {
-                let face_offset = x.faces[i].0;
-                let face_count = x.faces[i].1;
-                indirect_data.push(DrawIndirectArgs {
-                    vertex_count: face_count,
-                    instance_count: 1,
-                    first_vertex: vertex_offset as u32 + face_offset,
-                    first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
-                });
-            }
-        }
+        let v: [[f32; 4]; 4] = player.get_view().into();
+        let y = bytes_of(&v);
 
-        let call_count = indirect_data.len() as u32;
+        state.queue.write_buffer(buf, 0, &[x, y].concat());
+    }
 
-        // submit the data
+    fn upload_draw_buffer(&self, state: &WindowState, indirect_data: Vec<DrawIndirectArgs>) {
+        // Encode the structs as bytes so that they can be uploaded
         let data = indirect_data
             .iter()
             .flat_map(|f| f.as_bytes())
@@ -383,21 +384,5 @@ impl ChunkPool {
             0,
             data.as_slice(),
         );
-
-        call_count
-    }
-
-    fn upload_player_uniforms(&self, state: &WindowState, player: &Player) {
-        let Some(buf) = self.uniform_buffer.as_ref() else {
-            return;
-        };
-
-        let p: [[f32; 4]; 4] = player.get_projection().into();
-        let x = bytes_of(&p);
-
-        let v: [[f32; 4]; 4] = player.get_view().into();
-        let y = bytes_of(&v);
-
-        state.queue.write_buffer(buf, 0, &[x, y].concat());
     }
 }

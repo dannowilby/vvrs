@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, Criterion};
-use vvrs::chunk::{culling::VisibilityGraph, Chunk};
+use vvrs::chunk::{visibility::VisibilityGraph, Chunk};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("visibility graph overhead");
