@@ -53,20 +53,20 @@ impl Player {
     }
 
     pub fn get_chunk_pos(&self) -> ChunkPos {
-        let mut x = (self.position.x / CHUNK_SIZE as f32).floor() as i32;
-        if self.position.x < 0.0 {
-            x -= 1;
-        }
+        let x = (self.position.x / CHUNK_SIZE as f32).floor() as i32;
+        // if self.position.x < 0.0 {
+        //     x -= 1;
+        // }
 
-        let mut y = (self.position.y / CHUNK_SIZE as f32).floor() as i32;
-        if self.position.y < 0.0 {
-            y -= 1;
-        }
+        let y = (self.position.y / CHUNK_SIZE as f32).floor() as i32;
+        // if self.position.y < 0.0 {
+        //     y -= 1;
+        // }
 
-        let mut z = (self.position.z / CHUNK_SIZE as f32).floor() as i32;
-        if self.position.z < 0.0 {
-            z -= 1;
-        }
+        let z = (self.position.z / CHUNK_SIZE as f32).floor() as i32;
+        // if self.position.z < 0.0 {
+        //     z -= 1;
+        // }
 
         ChunkPos(x, y, z)
     }

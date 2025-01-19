@@ -14,12 +14,13 @@ use crate::{chunk::manager::ChunkManager, input::Input, player::Player};
 use super::window_state::WindowState;
 
 /// TODO:
-/// - Add frustum culling
 /// - Visibility graphs?
 /// - Chunk padding?
 /// - Real terrain
 /// - SSAO
 /// - Block textures/colors?
+/// - LOD
+/// - Async chunk loading
 #[derive(Default)]
 pub struct Game {
     window: Option<WindowState>,
@@ -106,6 +107,7 @@ impl ApplicationHandler for Game {
                 if self.acc_time > 1.0 {
                     // if more than 1 second
                     log::info!("FPS: {:.2}", self.frames as f32);
+                    // log::info!("{:?}", self.player.get_chunk_pos());
                     // log::info!("Current frame delta: {}", self.input.is_focused);
                     self.acc_time -= 1.0;
                     self.frames = 0;

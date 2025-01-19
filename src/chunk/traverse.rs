@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use cgmath::Matrix;
 use wgpu::util::DrawIndirectArgs;
 
 use crate::player::Player;
 
-use super::{pool::ChunkDrawInfo, ChunkPos, CHUNK_SIZE};
+use super::{pool::ChunkDrawInfo, visibility::Side, ChunkPos, CHUNK_SIZE};
 
 /// Traverses the world, queuing up the sides of chunks to be rendered
-pub fn build_draw_list(
+pub fn olad_build_draw_list(
     lookup: &HashMap<ChunkPos, ChunkDrawInfo>,
     player: &Player,
 ) -> Vec<DrawIndirectArgs> {
@@ -32,6 +32,96 @@ pub fn build_draw_list(
                     first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
                 });
             }
+        }
+    }
+
+    indirect_data
+}
+
+fn create_chunk_indirect_args(draw_info: &ChunkDrawInfo, side: Side) -> DrawIndirectArgs {
+    let face_count = draw_info.faces[side as usize].1;
+    let vertex_offset = draw_info.vertex_offset;
+    let face_offset = draw_info.faces[side as usize].0;
+    let storage_offset = draw_info.storage_offset;
+
+    DrawIndirectArgs {
+        vertex_count: face_count,
+        instance_count: 1,
+        first_vertex: vertex_offset as u32 + face_offset,
+        first_instance: storage_offset as u32, // use first instance to index into the uniform buffer
+    }
+}
+
+/// Creates the build list with advanced occlusion.
+///
+/// The chunks are traversed using breadth-first search and by consulting
+/// their visibility graphs so that only the visible faces of the chunks are
+/// rendered.
+pub fn build_draw_list(
+    lookup: &HashMap<ChunkPos, ChunkDrawInfo>,
+    player: &Player,
+) -> Vec<DrawIndirectArgs> {
+    let mut indirect_data = vec![];
+    let frustum_planes = calculate_frustum_planes(player);
+
+    let mut search_queue = VecDeque::new();
+    let mut visited = HashSet::new();
+
+    // draw all sides of the chunk that the player is in
+    {
+        let draw_info = &lookup
+            .get(&player.get_chunk_pos())
+            .expect("player should be in loaded world");
+        Side::iter().for_each(|side| {
+            indirect_data.push(create_chunk_indirect_args(draw_info, *side));
+        });
+    }
+
+    // the start of the search queue
+    let neighbors = get_neighbors(lookup, player.get_chunk_pos());
+    for (chunk_pos, side) in neighbors {
+        if !is_chunk_inside_frustum(chunk_pos, frustum_planes) {
+            continue;
+        }
+
+        // draw and push to search
+        let draw_info = &lookup.get(&chunk_pos).expect("should be loaded");
+        indirect_data.push(create_chunk_indirect_args(draw_info, side));
+
+        search_queue.push_back((chunk_pos, side));
+    }
+
+    while !search_queue.is_empty() {
+        let (current_pos, parent_side) = search_queue.pop_front().expect("should not be empty");
+
+        if visited.contains(&current_pos) {
+            continue;
+        }
+        visited.insert(current_pos);
+
+        // get the graph for the current chunk
+        let graph = &lookup
+            .get(&current_pos)
+            .expect("should exist in lookup")
+            .vis_graph;
+
+        let neighbors = get_neighbors(lookup, current_pos);
+        for (next_chunk, side) in neighbors {
+            // apply the filters, might want to break the control flow apart so
+            // no redundant computation is done
+            let already_seen = visited.contains(&next_chunk);
+            let in_frustum = is_chunk_inside_frustum(next_chunk, frustum_planes);
+            let can_see_from_parent = graph.can_reach_from(parent_side, side);
+
+            if already_seen || !in_frustum || !can_see_from_parent {
+                continue;
+            }
+
+            // if it passes the filters, then render it
+            let draw_info = lookup.get(&next_chunk).expect("should be in lookup");
+            indirect_data.push(create_chunk_indirect_args(draw_info, side));
+
+            search_queue.push_back((next_chunk, side.opposite()));
         }
     }
 
@@ -135,4 +225,44 @@ fn is_chunk_inside_frustum(chunk_pos: ChunkPos, frustum_planes: [cgmath::Vector4
         }
     }
     true
+}
+
+/// Returns a vector of loaded chunks neighboring the passed in chunk_pos.
+pub fn get_neighbors(
+    lookup: &HashMap<ChunkPos, ChunkDrawInfo>,
+    pos: ChunkPos,
+) -> Vec<(ChunkPos, Side)> {
+    let mut output = Vec::new();
+
+    let top = ChunkPos(pos.0, pos.1 + 1, pos.2);
+    if lookup.contains_key(&top) {
+        output.push((top, Side::TOP));
+    }
+
+    let bottom = ChunkPos(pos.0, pos.1 - 1, pos.2);
+    if lookup.contains_key(&bottom) {
+        output.push((bottom, Side::BOTTOM));
+    }
+
+    let left = ChunkPos(pos.0 - 1, pos.1, pos.2);
+    if lookup.contains_key(&left) {
+        output.push((left, Side::LEFT));
+    }
+
+    let right = ChunkPos(pos.0 + 1, pos.1, pos.2);
+    if lookup.contains_key(&right) {
+        output.push((right, Side::RIGHT));
+    }
+
+    let front = ChunkPos(pos.0, pos.1, pos.2 - 1);
+    if lookup.contains_key(&front) {
+        output.push((front, Side::FRONT));
+    }
+
+    let back = ChunkPos(pos.0, pos.1, pos.2 + 1);
+    if lookup.contains_key(&back) {
+        output.push((back, Side::BACK));
+    }
+
+    output
 }

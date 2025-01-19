@@ -226,43 +226,6 @@ fn flood_fill(
     output
 }
 
-// /// Returns a vector of loaded chunks neighboring the passed in chunk_pos.
-// pub fn get_neighbors(loaded_chunks: &ChunkStorage, pos: &Position) -> Vec<(Side, Position)> {
-//     let mut output = Vec::new();
-
-//     let top = (pos.0, pos.1 + 1, pos.2);
-//     if loaded_chunks.contains_key(&chunk_id(&top)) {
-//         output.push((Side::TOP, top));
-//     }
-
-//     let bottom = (pos.0, pos.1 - 1, pos.2);
-//     if loaded_chunks.contains_key(&chunk_id(&bottom)) {
-//         output.push((Side::BOTTOM, bottom));
-//     }
-
-//     let left = (pos.0 - 1, pos.1, pos.2);
-//     if loaded_chunks.contains_key(&chunk_id(&left)) {
-//         output.push((Side::LEFT, left));
-//     }
-
-//     let right = (pos.0 + 1, pos.1, pos.2);
-//     if loaded_chunks.contains_key(&chunk_id(&right)) {
-//         output.push((Side::RIGHT, right));
-//     }
-
-//     let front = (pos.0, pos.1, pos.2 - 1);
-//     if loaded_chunks.contains_key(&chunk_id(&front)) {
-//         output.push((Side::FRONT, front));
-//     }
-
-//     let back = (pos.0, pos.1, pos.2 + 1);
-//     if loaded_chunks.contains_key(&chunk_id(&back)) {
-//         output.push((Side::BACK, back));
-//     }
-
-//     output
-// }
-
 #[cfg(test)]
 mod tests {
     use crate::chunk::block::Block;
