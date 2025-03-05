@@ -17,5 +17,6 @@ A grid-based simulator.
   in nature to cellular automata is being developed, but is also still very rough.
 
 ## Acknowledgements
-[1] [Meshing in a Minecraft Game](https://0fps.net/2012/06/30/meshing-in-a-minecraft-game/) 0 FPS - Mostly geometry
-[2] [High Performance Voxel Engine: Vertex Pooling](https://nickmcd.me/2021/04/04/high-performance-voxel-engine/) Nick's Blog
+[1] [Meshing in a Minecraft Game](https://0fps.net/2012/06/30/meshing-in-a-minecraft-game/), 0 FPS - Mostly geometry
+
+[2] [High Performance Voxel Engine: Vertex Pooling](https://nickmcd.me/2021/04/04/high-performance-voxel-engine/), Nick's Blog
