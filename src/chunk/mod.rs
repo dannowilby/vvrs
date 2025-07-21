@@ -9,33 +9,19 @@ pub mod pool;
 pub mod traverse;
 pub mod visibility;
 
-/// This type indicates how large our chunks are. A ChunkDimTy of u32 indicates
-/// that our chunk will be 32x32x32 blocks. We tie the type together with the
-/// chunk size so that we can dynamically change the size without rewriting the
-/// binary meshing algorithm. Any unsigned numeric natural type should work, but
-/// other numeric types have not been tested yet.
 pub type ChunkDimTy = u32;
 
 /// Used for encoding the vertex position in a single vertex. We add a bit to encompass when the vertex pos is the max (ie 32 in a 32 bit chunk won't fit inside 5 bits). This can probably be changed if padding is added.
 pub const NUM_BITS_IN_POS: ChunkDimTy =
-    ChunkDimTy::ilog2(8 * std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) + 1 as ChunkDimTy;
+    ChunkDimTy::ilog2(8 * std::mem::size_of::<ChunkDimTy>() as ChunkDimTy) as ChunkDimTy + 1 as ChunkDimTy;
 pub const CHUNK_SIZE: ChunkDimTy = (std::mem::size_of::<ChunkDimTy>() * 8) as ChunkDimTy;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
-pub struct EncodedVertex(pub u32);
-
-// Would probably be better to do things with this at some point
-// impl Deref for EncodedVertex {
-//     type Target = u32;
-
-//     fn deref(&self) -> &Self::Target {
-//         todo!()
-//     }
-// }
+pub struct EncodedVertex(pub ChunkDimTy);
 
 impl EncodedVertex {
-    pub fn to_untyped(&self) -> u32 {
+    pub fn to_untyped(&self) -> ChunkDimTy {
         self.0
     }
 }

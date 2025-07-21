@@ -8,7 +8,7 @@ use crate::player::Player;
 use super::{pool::ChunkDrawInfo, visibility::Side, ChunkPos, CHUNK_SIZE};
 
 /// Traverses the world, queuing up the sides of chunks to be rendered
-pub fn olad_build_draw_list(
+pub fn build_draw_list(
     lookup: &HashMap<ChunkPos, ChunkDrawInfo>,
     player: &Player,
 ) -> Vec<DrawIndirectArgs> {
@@ -57,7 +57,7 @@ fn create_chunk_indirect_args(draw_info: &ChunkDrawInfo, side: Side) -> DrawIndi
 /// The chunks are traversed using breadth-first search and by consulting
 /// their visibility graphs so that only the visible faces of the chunks are
 /// rendered.
-pub fn build_draw_list(
+pub fn olad_build_draw_list(
     lookup: &HashMap<ChunkPos, ChunkDrawInfo>,
     player: &Player,
 ) -> Vec<DrawIndirectArgs> {
